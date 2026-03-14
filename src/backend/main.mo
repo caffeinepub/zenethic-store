@@ -16,15 +16,13 @@ actor {
   // Components
   include MixinStorage();
 
-  // Authorization state kept for upgrade compatibility (not actively used)
+  // Authorization (kept for component compatibility)
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  // UserProfile kept for upgrade compatibility
+  // Kept for upgrade compatibility with previous canister state
   public type UserProfile = { name : Text };
   let userProfiles = Map.empty<Principal, UserProfile>();
-
-  // Categories kept for upgrade compatibility
   let categories = Map.empty<Text, Bool>();
 
   // Data types
@@ -68,15 +66,16 @@ actor {
     activeProductCount : Nat;
   };
 
-  // Persistent storage
-  var nextProductId = 1;
-  var nextOrderId = 1;
+  // Stable counters so IDs survive upgrades
+  stable var nextProductId = 1;
+  stable var nextOrderId = 1;
 
+  // Storage (in-memory, PIN-gated on frontend)
   let products = Map.empty<Nat, Product>();
   let carts = Map.empty<Principal, [CartItem]>();
   let orders = Map.empty<Nat, Order>();
 
-  // Stripe integration
+  // Stripe
   var stripeConfiguration : ?Stripe.StripeConfiguration = null;
 
   public query func isStripeConfigured() : async Bool {
@@ -89,7 +88,7 @@ actor {
 
   func getStripeConfiguration() : Stripe.StripeConfiguration {
     switch (stripeConfiguration) {
-      case (null) { Runtime.trap("Stripe needs to be first configured") };
+      case (null) { Runtime.trap("Stripe not configured") };
       case (?value) { value };
     };
   };
@@ -106,7 +105,7 @@ actor {
     OutCall.transform(input);
   };
 
-  // Product Management — no auth required (single-owner store, PIN-gated on frontend)
+  // Product Management — no auth check (PIN-gated on frontend)
   public shared func createProduct(product : Product) : async () {
     let newProduct = {
       product with
@@ -120,9 +119,7 @@ actor {
   public shared func updateProduct(product : Product) : async () {
     switch (products.get(product.id)) {
       case (null) { Runtime.trap("Product not found") };
-      case (?_) {
-        products.add(product.id, product);
-      };
+      case (?_) { products.add(product.id, product) };
     };
   };
 
@@ -136,9 +133,7 @@ actor {
 
   public query func getCategories() : async [Text] {
     let cats = Map.empty<Text, Bool>();
-    for (p in products.values()) {
-      cats.add(p.category, true);
-    };
+    for (p in products.values()) { cats.add(p.category, true) };
     cats.keys().toArray();
   };
 
@@ -147,39 +142,27 @@ actor {
     switch (products.get(productId)) {
       case (null) { Runtime.trap("Product not found") };
       case (?product) {
-        if (not product.isActive) { Runtime.trap("Product is not active") };
-        let currentCart = switch (carts.get(caller)) {
-          case (null) { [] };
-          case (?cart) { cart };
-        };
-        carts.add(caller, currentCart.concat([{ productId; quantity }]));
+        if (not product.isActive) { Runtime.trap("Product not active") };
+        let cart = switch (carts.get(caller)) { case (null) { [] }; case (?c) { c } };
+        carts.add(caller, cart.concat([{ productId; quantity }]));
       };
     };
   };
 
   public shared ({ caller }) func removeFromCart(productId : Nat) : async () {
-    let currentCart = switch (carts.get(caller)) {
-      case (null) { [] };
-      case (?cart) { cart };
-    };
-    carts.add(caller, currentCart.filter(func(item) { item.productId != productId }));
+    let cart = switch (carts.get(caller)) { case (null) { [] }; case (?c) { c } };
+    carts.add(caller, cart.filter(func(item) { item.productId != productId }));
   };
 
   public shared ({ caller }) func updateCartQuantity(productId : Nat, quantity : Nat) : async () {
-    let currentCart = switch (carts.get(caller)) {
-      case (null) { [] };
-      case (?cart) { cart };
-    };
-    carts.add(caller, currentCart.map(func(item) {
+    let cart = switch (carts.get(caller)) { case (null) { [] }; case (?c) { c } };
+    carts.add(caller, cart.map(func(item) {
       if (item.productId == productId) { { productId; quantity } } else { item };
     }));
   };
 
   public query ({ caller }) func getCart() : async [CartItem] {
-    switch (carts.get(caller)) {
-      case (null) { [] };
-      case (?cart) { cart };
-    };
+    switch (carts.get(caller)) { case (null) { [] }; case (?c) { c } };
   };
 
   public shared ({ caller }) func clearCart() : async () {
@@ -190,34 +173,29 @@ actor {
   public shared ({ caller }) func placeOrder(shippingAddress : Text) : async () {
     let cart = switch (carts.get(caller)) {
       case (null) { Runtime.trap("Cart is empty") };
-      case (?cart) { cart };
+      case (?c) { c };
     };
     if (cart.size() == 0) { Runtime.trap("Cart is empty") };
     let orderItems = cart.map(func(item) {
       let price = switch (products.get(item.productId)) {
-        case (null) { 0 };
-        case (?product) { product.price };
+        case (null) { 0 }; case (?p) { p.price };
       };
       { productId = item.productId; quantity = item.quantity; priceAtPurchase = price };
     });
-    let totalAmount = orderItems.foldLeft(0, func(acc, item) {
+    let total = orderItems.foldLeft(0, func(acc, item) {
       acc + (item.quantity * item.priceAtPurchase);
     });
     orders.add(nextOrderId, {
-      id = nextOrderId;
-      userId = caller;
-      items = orderItems;
-      totalAmount;
-      status = "pending";
-      createdAt = Time.now();
-      shippingAddress;
+      id = nextOrderId; userId = caller; items = orderItems;
+      totalAmount = total; status = "pending";
+      createdAt = Time.now(); shippingAddress;
     });
     carts.remove(caller);
     nextOrderId += 1;
   };
 
   public query ({ caller }) func getUserOrders() : async [Order] {
-    orders.values().toArray().filter(func(order) { order.userId == caller });
+    orders.values().toArray().filter(func(o) { o.userId == caller });
   };
 
   public query func getAllOrders() : async [Order] {
@@ -227,51 +205,36 @@ actor {
   public shared func updateOrderStatus(orderId : Nat, status : Text) : async () {
     switch (orders.get(orderId)) {
       case (null) { Runtime.trap("Order not found") };
-      case (?order) {
-        orders.add(orderId, { order with status });
-      };
+      case (?order) { orders.add(orderId, { order with status }) };
     };
   };
 
   public query func getStoreStats() : async StoreStats {
     let totalOrders = orders.size();
-    let totalRevenue = orders.values().toArray().foldLeft(0, func(acc, order) {
-      acc + order.totalAmount;
-    });
+    let totalRevenue = orders.values().toArray().foldLeft(0, func(acc, o) { acc + o.totalAmount });
     let productCount = products.size();
-    var activeProductCount = 0;
-    for (product in products.values()) {
-      if (product.isActive) { activeProductCount += 1 };
-    };
-    { totalOrders; totalRevenue; productCount; activeProductCount };
+    var active = 0;
+    for (p in products.values()) { if (p.isActive) { active += 1 } };
+    { totalOrders; totalRevenue; productCount; activeProductCount = active };
   };
 
   module Product {
-    public func compare(p1 : Product, p2 : Product) : Order.Order {
-      Nat.compare(p1.id, p2.id);
-    };
+    public func compare(p1 : Product, p2 : Product) : Order.Order { Nat.compare(p1.id, p2.id) };
   };
-
   module CartItem {
-    public func compare(c1 : CartItem, c2 : CartItem) : Order.Order {
-      Nat.compare(c1.productId, c2.productId);
-    };
+    public func compare(c1 : CartItem, c2 : CartItem) : Order.Order { Nat.compare(c1.productId, c2.productId) };
   };
-
   module OrderItem {
     public func compare(o1 : OrderItem, o2 : OrderItem) : Order.Order {
       switch (Nat.compare(o1.productId, o2.productId)) {
-        case (#equal) { Nat.compare(o1.quantity, o2.quantity) };
-        case (order) { order };
+        case (#equal) { Nat.compare(o1.quantity, o2.quantity) }; case (o) { o };
       };
     };
   };
-
   module StoreStats {
     public func compare(s1 : StoreStats, s2 : StoreStats) : Order.Order {
       switch (Nat.compare(s1.totalOrders, s2.totalOrders)) {
-        case (#equal) { Nat.compare(s1.totalRevenue, s2.totalRevenue) };
-        case (order) { order };
+        case (#equal) { Nat.compare(s1.totalRevenue, s2.totalRevenue) }; case (o) { o };
       };
     };
   };

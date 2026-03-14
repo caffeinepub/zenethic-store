@@ -107,7 +107,6 @@ export interface _SERVICE {
   'addToCart' : ActorMethod<[bigint, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'clearCart' : ActorMethod<[], undefined>,
-  'claimInitialAdmin' : ActorMethod<[], boolean>,
   'createCheckoutSession' : ActorMethod<
     [Array<ShoppingItem>, string, string],
     string
@@ -124,7 +123,6 @@ export interface _SERVICE {
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
   'getUserOrders' : ActorMethod<[], Array<Order>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
-  'isAdminInitialized' : ActorMethod<[], boolean>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isStripeConfigured' : ActorMethod<[], boolean>,
   'placeOrder' : ActorMethod<[string], undefined>,

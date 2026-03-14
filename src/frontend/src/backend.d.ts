@@ -7,6 +7,9 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
+export interface UserProfile {
+    name: string;
+}
 export interface TransformationOutput {
     status: bigint;
     body: Uint8Array;
@@ -83,22 +86,33 @@ export interface Product {
     category: string;
     price: bigint;
 }
+export enum UserRole {
+    admin = "admin",
+    user = "user",
+    guest = "guest"
+}
 export interface backendInterface {
     addToCart(productId: bigint, quantity: bigint): Promise<void>;
+    assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
     createProduct(product: Product): Promise<void>;
     deleteProduct(productId: bigint): Promise<void>;
     getAllOrders(): Promise<Array<Order>>;
+    getCallerUserProfile(): Promise<UserProfile | null>;
+    getCallerUserRole(): Promise<UserRole>;
     getCart(): Promise<Array<CartItem>>;
     getCategories(): Promise<Array<string>>;
     getProducts(): Promise<Array<Product>>;
     getStoreStats(): Promise<StoreStats>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
     getUserOrders(): Promise<Array<Order>>;
+    getUserProfile(user: Principal): Promise<UserProfile | null>;
+    isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
     placeOrder(shippingAddress: string): Promise<void>;
     removeFromCart(productId: bigint): Promise<void>;
+    saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
     updateCartQuantity(productId: bigint, quantity: bigint): Promise<void>;

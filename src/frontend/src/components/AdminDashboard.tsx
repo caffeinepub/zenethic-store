@@ -37,6 +37,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ChevronDown,
   ChevronUp,
+  Copy,
+  CreditCard,
   DollarSign,
   Edit2,
   Loader2,
@@ -146,7 +148,6 @@ export function AdminDashboard() {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate inputs before BigInt conversion
     if (!form.name.trim()) {
       toast.error("Product name is required");
       return;
@@ -246,10 +247,14 @@ export function AdminDashboard() {
   const applySample = (sample: (typeof SAMPLE_PRODUCTS)[0]) => {
     setEditingProduct(null);
     setForm({ ...sample, isActive: true });
-    // Scroll to form
     document
       .getElementById("product-form-card")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleCopyStoreLink = () => {
+    navigator.clipboard.writeText(window.location.origin);
+    toast.success("Store link copied!");
   };
 
   return (
@@ -745,57 +750,116 @@ export function AdminDashboard() {
 
         {/* Settings Tab */}
         <TabsContent value="settings">
-          <Card className="max-w-lg border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="font-display text-lg">
-                Stripe Configuration
-              </CardTitle>
-              {stripeConfigured !== undefined && (
-                <Badge
-                  variant={stripeConfigured ? "default" : "secondary"}
-                  className={
-                    stripeConfigured
-                      ? "gold-gradient border-0 text-primary-foreground w-fit"
-                      : "w-fit"
-                  }
-                >
-                  {stripeConfigured ? "✓ Configured" : "Not configured"}
-                </Badge>
-              )}
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSaveStripe} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="stripe-key">Stripe Secret Key</Label>
+          <div className="space-y-4">
+            {/* Store Link Card */}
+            <Card className="max-w-lg border-border/50 bg-card">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">
+                  Your Store Link
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-3 text-sm text-muted-foreground">
+                  Share this link with your customers so they can visit your
+                  store.
+                </p>
+                <div className="flex gap-2">
                   <Input
-                    id="stripe-key"
-                    type="password"
-                    placeholder="sk_live_... or sk_test_..."
-                    value={stripeKey}
-                    onChange={(e) => setStripeKey(e.target.value)}
-                    required
+                    data-ocid="admin.store_link.input"
+                    readOnly
+                    value={window.location.origin}
+                    className="font-mono text-sm"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Your Stripe secret key. Keep this confidential.
-                  </p>
+                  <Button
+                    data-ocid="admin.store_link.button"
+                    type="button"
+                    variant="outline"
+                    className="shrink-0 border-primary/40 hover:bg-primary hover:text-primary-foreground"
+                    onClick={handleCopyStoreLink}
+                  >
+                    <Copy className="mr-1.5 h-4 w-4" />
+                    Copy
+                  </Button>
                 </div>
-                <Button
-                  type="submit"
-                  className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
-                  disabled={setStripeConfig.isPending}
-                >
-                  {setStripeConfig.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Configuration"
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+
+            {/* Payment Mode Card */}
+            <Card className="max-w-lg border-border/50 bg-card">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">
+                  Payment Mode
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-3">
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Stripe</p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      Payments are processed securely via Stripe. Configure your
+                      Stripe key below to enable checkout.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stripe Configuration Card */}
+            <Card className="max-w-lg border-border/50 bg-card">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">
+                  Stripe Configuration
+                </CardTitle>
+                {stripeConfigured !== undefined && (
+                  <Badge
+                    variant={stripeConfigured ? "default" : "secondary"}
+                    className={
+                      stripeConfigured
+                        ? "gold-gradient border-0 text-primary-foreground w-fit"
+                        : "w-fit"
+                    }
+                  >
+                    {stripeConfigured ? "✓ Configured" : "Not configured"}
+                  </Badge>
+                )}
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSaveStripe} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="stripe-key">Stripe Secret Key</Label>
+                    <Input
+                      id="stripe-key"
+                      type="password"
+                      placeholder="sk_live_... or sk_test_..."
+                      value={stripeKey}
+                      onChange={(e) => setStripeKey(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your Stripe secret key. Keep this confidential.
+                    </p>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
+                    disabled={setStripeConfig.isPending}
+                  >
+                    {setStripeConfig.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Configuration"
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 

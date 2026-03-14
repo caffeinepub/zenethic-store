@@ -128,7 +128,6 @@ export const idlService = IDL.Service({
   'addToCart' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'clearCart' : IDL.Func([], [], []),
-  'claimInitialAdmin' : IDL.Func([], [IDL.Bool], []),
   'createCheckoutSession' : IDL.Func(
       [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
       [IDL.Text],
@@ -150,7 +149,6 @@ export const idlService = IDL.Service({
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
-  'isAdminInitialized' : IDL.Func([], [IDL.Bool], ['query']),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
   'placeOrder' : IDL.Func([IDL.Text], [], []),
@@ -284,7 +282,6 @@ export const idlFactory = ({ IDL }) => {
     'addToCart' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'clearCart' : IDL.Func([], [], []),
-    'claimInitialAdmin' : IDL.Func([], [IDL.Bool], []),
     'createCheckoutSession' : IDL.Func(
         [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
         [IDL.Text],
@@ -306,7 +303,6 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
-    'isAdminInitialized' : IDL.Func([], [IDL.Bool], ['query']),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
     'placeOrder' : IDL.Func([IDL.Text], [], []),

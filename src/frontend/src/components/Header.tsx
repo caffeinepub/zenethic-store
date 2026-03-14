@@ -260,24 +260,22 @@ export function Header({
                     Shop
                   </button>
 
-                  {isLoggedIn && (
-                    <button
-                      type="button"
-                      data-ocid="mobile.orders_link"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        onOrdersClick();
-                      }}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted ${
-                        currentPage === "orders"
-                          ? "bg-muted text-primary"
-                          : "text-foreground"
-                      }`}
-                    >
-                      <Package className="h-4 w-4" />
-                      My Orders
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    data-ocid="mobile.orders_link"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOrdersClick();
+                    }}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-muted ${
+                      currentPage === "orders"
+                        ? "bg-muted text-primary"
+                        : "text-foreground"
+                    }`}
+                  >
+                    <Package className="h-4 w-4" />
+                    My Orders
+                  </button>
 
                   <button
                     type="button"
