@@ -1,6 +1,8 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CheckCircle,
   Clock,
@@ -10,7 +12,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useUserOrders } from "../hooks/useQueries";
+import { toast } from "sonner";
+import { useUpdateOrderStatus, useUserOrders } from "../hooks/useQueries";
 
 const statusConfig: Record<
   string,
@@ -27,6 +30,18 @@ const SKELETON_KEYS = ["sk-1", "sk-2", "sk-3"];
 
 export function OrderHistory() {
   const { data: orders = [], isLoading } = useUserOrders();
+  const updateOrderStatus = useUpdateOrderStatus();
+  const queryClient = useQueryClient();
+
+  const handleCancel = async (orderId: bigint, _index: number) => {
+    try {
+      await updateOrderStatus.mutateAsync({ orderId, status: "cancelled" });
+      queryClient.invalidateQueries({ queryKey: ["userOrders"] });
+      toast.success("Order cancelled successfully.");
+    } catch {
+      toast.error("Failed to cancel order. Please try again.");
+    }
+  };
 
   if (isLoading) {
     return (
@@ -67,6 +82,8 @@ export function OrderHistory() {
               Number(order.createdAt) / 1_000_000,
             ).toLocaleDateString();
             const total = Number(order.totalAmount) / 100;
+            const canCancel =
+              order.status === "pending" || order.status === "processing";
 
             return (
               <motion.div
@@ -113,6 +130,30 @@ export function OrderHistory() {
                         <p className="text-xs text-muted-foreground">
                           Ships to: {order.shippingAddress}
                         </p>
+                      </div>
+                    )}
+                    {canCancel && (
+                      <div className="mt-3 border-t border-border/50 pt-3">
+                        <Button
+                          data-ocid={`orders.cancel_button.${i + 1}`}
+                          variant="outline"
+                          size="sm"
+                          className="border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground text-xs"
+                          onClick={() => handleCancel(order.id, i)}
+                          disabled={updateOrderStatus.isPending}
+                        >
+                          {updateOrderStatus.isPending ? (
+                            <>
+                              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              Cancelling...
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="mr-1 h-3 w-3" />
+                              Cancel Order
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
                   </CardContent>

@@ -28,7 +28,10 @@ export interface OrderItem {
 }
 export interface Order {
     id: bigint;
+    customerName: string;
     status: string;
+    paymentMethod: string;
+    customerPhone: string;
     userId: Principal;
     createdAt: bigint;
     totalAmount: bigint;
@@ -94,6 +97,7 @@ export enum UserRole {
 export interface backendInterface {
     addToCart(productId: bigint, quantity: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    cancelOrder(orderId: bigint): Promise<void>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
     createProduct(product: Product): Promise<void>;
@@ -106,14 +110,16 @@ export interface backendInterface {
     getProducts(): Promise<Array<Product>>;
     getStoreStats(): Promise<StoreStats>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
+    getUpiId(): Promise<string>;
     getUserOrders(): Promise<Array<Order>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
-    placeOrder(shippingAddress: string): Promise<void>;
+    placeOrderWithMethod(shippingAddress: string, paymentMethod: string, customerName: string, customerPhone: string): Promise<void>;
     removeFromCart(productId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
+    setUpiId(id: string): Promise<void>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
     updateCartQuantity(productId: bigint, quantity: bigint): Promise<void>;
     updateOrderStatus(orderId: bigint, status: string): Promise<void>;

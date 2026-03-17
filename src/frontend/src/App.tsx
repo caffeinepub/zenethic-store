@@ -12,7 +12,7 @@ import { useInternetIdentity } from "./hooks/useInternetIdentity";
 
 type Page = "shop" | "admin" | "orders";
 
-const ADMIN_PIN = "admin1234";
+const ADMIN_PIN = "admin2727";
 
 export default function App() {
   const [page, setPage] = useState<Page>("shop");

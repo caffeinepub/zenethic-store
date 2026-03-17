@@ -41,6 +41,8 @@ import {
   CreditCard,
   DollarSign,
   Edit2,
+  ImageIcon,
+  ImagePlus,
   Loader2,
   Package,
   Plus,
@@ -48,17 +50,20 @@ import {
   Sparkles,
   Trash2,
   TrendingUp,
+  X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
 import {
   useAllOrders,
   useCreateProduct,
   useDeleteProduct,
+  useGetUpiId,
   useIsStripeConfigured,
   useProducts,
   useSetStripeConfiguration,
+  useSetUpiId,
   useStoreStats,
   useUpdateOrderStatus,
   useUpdateProduct,
@@ -81,8 +86,7 @@ const SAMPLE_PRODUCTS = [
       "Comfortable and stylish floral print kurti for everyday wear. Available in multiple sizes.",
     price: "12.99",
     category: "Clothing",
-    imageUrl:
-      "https://images.meesho.com/images/products/379764984/kpkqr_512.webp",
+    imageUrl: "/assets/generated/product-sweater.dim_600x600.jpg",
     stock: "50",
   },
   {
@@ -91,8 +95,7 @@ const SAMPLE_PRODUCTS = [
       "Premium cotton casual shirt with slim fit design, perfect for office and casual outings.",
     price: "14.99",
     category: "Clothing",
-    imageUrl:
-      "https://images.meesho.com/images/products/228572042/mvmnm_512.webp",
+    imageUrl: "/assets/generated/product-scarf.dim_600x600.jpg",
     stock: "30",
   },
   {
@@ -101,8 +104,7 @@ const SAMPLE_PRODUCTS = [
       "Elegant gold plated necklace with matching earrings. Perfect for weddings and festivals.",
     price: "8.99",
     category: "Jewellery",
-    imageUrl:
-      "https://images.meesho.com/images/products/351625140/ucjst_512.webp",
+    imageUrl: "/assets/generated/product-perfume.dim_600x600.jpg",
     stock: "25",
   },
   {
@@ -111,8 +113,7 @@ const SAMPLE_PRODUCTS = [
       "Lightweight and breathable sports shoes with cushioned sole for daily workouts.",
     price: "24.99",
     category: "Footwear",
-    imageUrl:
-      "https://images.meesho.com/images/products/384020108/yfnhk_512.webp",
+    imageUrl: "/assets/generated/product-shoes.dim_600x600.jpg",
     stock: "20",
   },
   {
@@ -121,8 +122,7 @@ const SAMPLE_PRODUCTS = [
       "Spacious printed canvas tote bag with zipper. Great for shopping and daily use.",
     price: "6.99",
     category: "Bags",
-    imageUrl:
-      "https://images.meesho.com/images/products/294567123/abcde_512.webp",
+    imageUrl: "/assets/generated/product-handbag.dim_600x600.jpg",
     stock: "40",
   },
 ];
@@ -139,11 +139,42 @@ export function AdminDashboard() {
   const updateOrderStatus = useUpdateOrderStatus();
   const setStripeConfig = useSetStripeConfiguration();
 
+  const { data: upiId = "" } = useGetUpiId();
+  const setUpiId = useSetUpiId();
+
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
   const [stripeKey, setStripeKey] = useState("");
+  const [upiIdInput, setUpiIdInput] = useState("");
   const [samplesOpen, setSamplesOpen] = useState(true);
+  const [imageUrlInput, setImageUrlInput] = useState("");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setForm((f) => ({ ...f, imageUrl: dataUrl }));
+      setImageUrlInput("");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setImageUrlInput(val);
+    setForm((f) => ({ ...f, imageUrl: val }));
+  };
+
+  const clearImage = () => {
+    setForm((f) => ({ ...f, imageUrl: "" }));
+    setImageUrlInput("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,6 +228,8 @@ export function AdminDashboard() {
         toast.success("Product created successfully!");
       }
       setForm(EMPTY_FORM);
+      setImageUrlInput("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Product save error:", error);
       const message =
@@ -207,6 +240,8 @@ export function AdminDashboard() {
 
   const startEdit = (product: Product) => {
     setEditingProduct(product);
+    const isDataUrl = product.imageUrl.startsWith("data:");
+    setImageUrlInput(isDataUrl ? "" : product.imageUrl);
     setForm({
       name: product.name,
       description: product.description,
@@ -246,6 +281,7 @@ export function AdminDashboard() {
 
   const applySample = (sample: (typeof SAMPLE_PRODUCTS)[0]) => {
     setEditingProduct(null);
+    setImageUrlInput(sample.imageUrl);
     setForm({ ...sample, isActive: true });
     document
       .getElementById("product-form-card")
@@ -328,7 +364,7 @@ export function AdminDashboard() {
                             className="h-full w-full object-cover transition-transform group-hover:scale-105"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src =
-                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f3f4f6'/%3E%3Ctext x='50' y='50' font-size='30' text-anchor='middle' dominant-baseline='middle'%3E🛍️%3C/text%3E%3C/svg%3E";
+                                "/assets/generated/product-handbag.dim_600x600.jpg";
                             }}
                           />
                         </div>
@@ -437,17 +473,93 @@ export function AdminDashboard() {
                         required
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pimg">Image URL</Label>
-                      <Input
-                        id="pimg"
-                        value={form.imageUrl}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, imageUrl: e.target.value }))
-                        }
-                        placeholder="https://..."
+
+                    {/* Image Picker */}
+                    <div className="space-y-2">
+                      <Label>Product Image</Label>
+
+                      {/* Hidden file input */}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFileSelect}
                       />
+
+                      {/* Upload from gallery button */}
+                      <button
+                        type="button"
+                        data-ocid="admin.product_form.upload_button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/5"
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background">
+                          <ImagePlus className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">
+                            Upload from Gallery / Album
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Tap to pick a photo from your device
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* OR divider */}
+                      <div className="relative flex items-center gap-3 py-1">
+                        <div className="h-px flex-1 bg-border/60" />
+                        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                          OR
+                        </span>
+                        <div className="h-px flex-1 bg-border/60" />
+                      </div>
+
+                      {/* URL input */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">
+                            Or paste image URL
+                          </span>
+                        </div>
+                        <Input
+                          id="pimg"
+                          data-ocid="admin.product_form.image_url_input"
+                          value={imageUrlInput}
+                          onChange={handleImageUrlChange}
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+
+                      {/* Preview */}
+                      {form.imageUrl && (
+                        <div className="relative mt-1 overflow-hidden rounded-lg border border-border/50 bg-muted/20">
+                          <img
+                            src={form.imageUrl}
+                            alt="Product preview"
+                            className="h-36 w-full object-contain p-2"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display =
+                                "none";
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={clearImage}
+                            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground"
+                            title="Remove image"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                          <p className="pb-1 text-center text-xs text-muted-foreground">
+                            Preview
+                          </p>
+                        </div>
+                      )}
                     </div>
+
                     <div className="flex items-center gap-2">
                       <Switch
                         id="pactive"
@@ -487,6 +599,7 @@ export function AdminDashboard() {
                           onClick={() => {
                             setEditingProduct(null);
                             setForm(EMPTY_FORM);
+                            setImageUrlInput("");
                           }}
                         >
                           Cancel
@@ -510,6 +623,7 @@ export function AdminDashboard() {
                     onClick={() => {
                       setEditingProduct(null);
                       setForm(EMPTY_FORM);
+                      setImageUrlInput("");
                     }}
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" /> Add New
@@ -632,6 +746,7 @@ export function AdminDashboard() {
                       <TableHead>Date</TableHead>
                       <TableHead>Items</TableHead>
                       <TableHead>Total</TableHead>
+                      <TableHead>Payment</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -655,6 +770,26 @@ export function AdminDashboard() {
                         </TableCell>
                         <TableCell className="text-sm font-medium">
                           ₹{(Number(order.totalAmount) / 100).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {order.paymentMethod ? (
+                            <Badge
+                              variant="secondary"
+                              className={
+                                order.paymentMethod === "cod"
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                  : order.paymentMethod === "upi"
+                                    ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
+                                    : "gold-gradient border-0 text-primary-foreground"
+                              }
+                            >
+                              {order.paymentMethod.toUpperCase()}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              —
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Select
@@ -781,6 +916,66 @@ export function AdminDashboard() {
                     Copy
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* UPI ID Card */}
+            <Card className="max-w-lg border-border/50 bg-card">
+              <CardHeader>
+                <CardTitle className="font-display text-lg">UPI ID</CardTitle>
+                {upiId && (
+                  <p className="text-sm text-muted-foreground">
+                    Current:{" "}
+                    <span className="font-mono font-semibold text-foreground">
+                      {upiId}
+                    </span>
+                  </p>
+                )}
+              </CardHeader>
+              <CardContent>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    try {
+                      await setUpiId.mutateAsync(upiIdInput);
+                      toast.success("UPI ID saved!");
+                      setUpiIdInput("");
+                    } catch {
+                      toast.error("Failed to save UPI ID");
+                    }
+                  }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <Label htmlFor="upi-id-input">Your UPI ID</Label>
+                    <Input
+                      id="upi-id-input"
+                      data-ocid="admin.upi_id.input"
+                      placeholder="yourname@upi"
+                      value={upiIdInput}
+                      onChange={(e) => setUpiIdInput(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Customers will see this ID to send UPI payments.
+                    </p>
+                  </div>
+                  <Button
+                    data-ocid="admin.upi_id.save_button"
+                    type="submit"
+                    className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
+                    disabled={setUpiId.isPending}
+                  >
+                    {setUpiId.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save UPI ID"
+                    )}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
 

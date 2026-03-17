@@ -13,7 +13,10 @@ import type { Principal } from '@icp-sdk/core/principal';
 export interface CartItem { 'productId' : bigint, 'quantity' : bigint }
 export interface Order {
   'id' : bigint,
+  'customerName' : string,
   'status' : string,
+  'paymentMethod' : string,
+  'customerPhone' : string,
   'userId' : Principal,
   'createdAt' : bigint,
   'totalAmount' : bigint,
@@ -106,6 +109,7 @@ export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
   'addToCart' : ActorMethod<[bigint, bigint], undefined>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
+  'cancelOrder' : ActorMethod<[bigint], undefined>,
   'clearCart' : ActorMethod<[], undefined>,
   'createCheckoutSession' : ActorMethod<
     [Array<ShoppingItem>, string, string],
@@ -121,14 +125,19 @@ export interface _SERVICE {
   'getProducts' : ActorMethod<[], Array<Product>>,
   'getStoreStats' : ActorMethod<[], StoreStats>,
   'getStripeSessionStatus' : ActorMethod<[string], StripeSessionStatus>,
+  'getUpiId' : ActorMethod<[], string>,
   'getUserOrders' : ActorMethod<[], Array<Order>>,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'isStripeConfigured' : ActorMethod<[], boolean>,
-  'placeOrder' : ActorMethod<[string], undefined>,
+  'placeOrderWithMethod' : ActorMethod<
+    [string, string, string, string],
+    undefined
+  >,
   'removeFromCart' : ActorMethod<[bigint], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
   'setStripeConfiguration' : ActorMethod<[StripeConfiguration], undefined>,
+  'setUpiId' : ActorMethod<[string], undefined>,
   'transform' : ActorMethod<[TransformationInput], TransformationOutput>,
   'updateCartQuantity' : ActorMethod<[bigint, bigint], undefined>,
   'updateOrderStatus' : ActorMethod<[bigint, string], undefined>,

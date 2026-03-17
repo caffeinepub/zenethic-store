@@ -117,7 +117,10 @@ export interface _CaffeineStorageCreateCertificateResult {
 }
 export interface Order {
     id: bigint;
+    customerName: string;
     status: string;
+    paymentMethod: string;
+    customerPhone: string;
     userId: Principal;
     createdAt: bigint;
     totalAmount: bigint;
@@ -194,6 +197,7 @@ export interface backendInterface {
     _initializeAccessControlWithSecret(userSecret: string): Promise<void>;
     addToCart(productId: bigint, quantity: bigint): Promise<void>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
+    cancelOrder(orderId: bigint): Promise<void>;
     clearCart(): Promise<void>;
     createCheckoutSession(items: Array<ShoppingItem>, successUrl: string, cancelUrl: string): Promise<string>;
     createProduct(product: Product): Promise<void>;
@@ -206,14 +210,16 @@ export interface backendInterface {
     getProducts(): Promise<Array<Product>>;
     getStoreStats(): Promise<StoreStats>;
     getStripeSessionStatus(sessionId: string): Promise<StripeSessionStatus>;
+    getUpiId(): Promise<string>;
     getUserOrders(): Promise<Array<Order>>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
     isStripeConfigured(): Promise<boolean>;
-    placeOrder(shippingAddress: string): Promise<void>;
+    placeOrderWithMethod(shippingAddress: string, paymentMethod: string, customerName: string, customerPhone: string): Promise<void>;
     removeFromCart(productId: bigint): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
     setStripeConfiguration(config: StripeConfiguration): Promise<void>;
+    setUpiId(id: string): Promise<void>;
     transform(input: TransformationInput): Promise<TransformationOutput>;
     updateCartQuantity(productId: bigint, quantity: bigint): Promise<void>;
     updateOrderStatus(orderId: bigint, status: string): Promise<void>;
@@ -345,6 +351,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.assignCallerUserRole(arg0, to_candid_UserRole_n8(this._uploadFile, this._downloadFile, arg1));
+            return result;
+        }
+    }
+    async cancelOrder(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.cancelOrder(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.cancelOrder(arg0);
             return result;
         }
     }
@@ -516,6 +536,20 @@ export class Backend implements backendInterface {
             return from_candid_StripeSessionStatus_n13(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getUpiId(): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUpiId();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUpiId();
+            return result;
+        }
+    }
     async getUserOrders(): Promise<Array<Order>> {
         if (this.processError) {
             try {
@@ -572,17 +606,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async placeOrder(arg0: string): Promise<void> {
+    async placeOrderWithMethod(arg0: string, arg1: string, arg2: string, arg3: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.placeOrder(arg0);
+                const result = await this.actor.placeOrderWithMethod(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.placeOrder(arg0);
+            const result = await this.actor.placeOrderWithMethod(arg0, arg1, arg2, arg3);
             return result;
         }
     }
@@ -625,6 +659,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.setStripeConfiguration(arg0);
+            return result;
+        }
+    }
+    async setUpiId(arg0: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setUpiId(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.setUpiId(arg0);
             return result;
         }
     }

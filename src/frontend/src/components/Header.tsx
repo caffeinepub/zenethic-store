@@ -66,7 +66,7 @@ export function Header({
   );
 
   const handlePinSubmit = () => {
-    if (pin === "admin1234") {
+    if (pin === "admin2727") {
       onAdminUnlock(pin);
       setPinDialogOpen(false);
       setPin("");
@@ -96,12 +96,12 @@ export function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/90 backdrop-blur-md">
+      <header className="sticky top-0 z-50 border-b border-primary/20 bg-background/90 backdrop-blur-md">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <button
             type="button"
             onClick={onShopClick}
-            className="flex items-center gap-2 focus:outline-none"
+            className="flex items-center gap-2 tracking-tight focus:outline-none"
           >
             <img
               src="/assets/generated/zenethic-logo-transparent.dim_400x120.png"
@@ -116,9 +116,9 @@ export function Header({
               type="button"
               data-ocid="nav.shop_link"
               onClick={onShopClick}
-              className={`text-sm font-medium tracking-wide transition-colors hover:text-primary ${
+              className={`relative text-sm font-semibold tracking-wide transition-colors hover:text-primary ${
                 currentPage === "shop"
-                  ? "text-primary"
+                  ? "text-primary after:absolute after:-bottom-1 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-primary after:content-['']"
                   : "text-muted-foreground"
               }`}
             >
@@ -129,9 +129,9 @@ export function Header({
                 type="button"
                 data-ocid="nav.orders_link"
                 onClick={onOrdersClick}
-                className={`text-sm font-medium tracking-wide transition-colors hover:text-primary ${
+                className={`relative text-sm font-semibold tracking-wide transition-colors hover:text-primary ${
                   currentPage === "orders"
-                    ? "text-primary"
+                    ? "text-primary after:absolute after:-bottom-1 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-primary after:content-['']"
                     : "text-muted-foreground"
                 }`}
               >
@@ -142,9 +142,9 @@ export function Header({
               type="button"
               data-ocid="nav.admin_link"
               onClick={handleAdminNavClick}
-              className={`flex items-center gap-1.5 text-sm font-medium tracking-wide transition-colors hover:text-primary ${
+              className={`relative flex items-center gap-1.5 text-sm font-semibold tracking-wide transition-colors hover:text-primary ${
                 currentPage === "admin"
-                  ? "text-primary"
+                  ? "text-primary after:absolute after:-bottom-1 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-primary after:content-['']"
                   : "text-muted-foreground"
               }`}
             >
@@ -374,15 +374,6 @@ export function Header({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-              <p className="text-xs text-muted-foreground">
-                Default Admin PIN:
-              </p>
-              <p className="font-mono text-lg font-bold tracking-widest text-primary">
-                admin1234
-              </p>
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="admin-pin">PIN</Label>
               <Input

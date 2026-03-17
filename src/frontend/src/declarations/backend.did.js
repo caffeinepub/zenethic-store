@@ -49,7 +49,10 @@ export const OrderItem = IDL.Record({
 });
 export const Order = IDL.Record({
   'id' : IDL.Nat,
+  'customerName' : IDL.Text,
   'status' : IDL.Text,
+  'paymentMethod' : IDL.Text,
+  'customerPhone' : IDL.Text,
   'userId' : IDL.Principal,
   'createdAt' : IDL.Int,
   'totalAmount' : IDL.Nat,
@@ -127,6 +130,7 @@ export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
   'addToCart' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+  'cancelOrder' : IDL.Func([IDL.Nat], [], []),
   'clearCart' : IDL.Func([], [], []),
   'createCheckoutSession' : IDL.Func(
       [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
@@ -143,6 +147,7 @@ export const idlService = IDL.Service({
   'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
   'getStoreStats' : IDL.Func([], [StoreStats], ['query']),
   'getStripeSessionStatus' : IDL.Func([IDL.Text], [StripeSessionStatus], []),
+  'getUpiId' : IDL.Func([], [IDL.Text], ['query']),
   'getUserOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
@@ -151,10 +156,15 @@ export const idlService = IDL.Service({
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
-  'placeOrder' : IDL.Func([IDL.Text], [], []),
+  'placeOrderWithMethod' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'removeFromCart' : IDL.Func([IDL.Nat], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
   'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+  'setUpiId' : IDL.Func([IDL.Text], [], []),
   'transform' : IDL.Func(
       [TransformationInput],
       [TransformationOutput],
@@ -209,7 +219,10 @@ export const idlFactory = ({ IDL }) => {
   });
   const Order = IDL.Record({
     'id' : IDL.Nat,
+    'customerName' : IDL.Text,
     'status' : IDL.Text,
+    'paymentMethod' : IDL.Text,
+    'customerPhone' : IDL.Text,
     'userId' : IDL.Principal,
     'createdAt' : IDL.Int,
     'totalAmount' : IDL.Nat,
@@ -281,6 +294,7 @@ export const idlFactory = ({ IDL }) => {
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
     'addToCart' : IDL.Func([IDL.Nat, IDL.Nat], [], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
+    'cancelOrder' : IDL.Func([IDL.Nat], [], []),
     'clearCart' : IDL.Func([], [], []),
     'createCheckoutSession' : IDL.Func(
         [IDL.Vec(ShoppingItem), IDL.Text, IDL.Text],
@@ -297,6 +311,7 @@ export const idlFactory = ({ IDL }) => {
     'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
     'getStoreStats' : IDL.Func([], [StoreStats], ['query']),
     'getStripeSessionStatus' : IDL.Func([IDL.Text], [StripeSessionStatus], []),
+    'getUpiId' : IDL.Func([], [IDL.Text], ['query']),
     'getUserOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
@@ -305,10 +320,15 @@ export const idlFactory = ({ IDL }) => {
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'isStripeConfigured' : IDL.Func([], [IDL.Bool], ['query']),
-    'placeOrder' : IDL.Func([IDL.Text], [], []),
+    'placeOrderWithMethod' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'removeFromCart' : IDL.Func([IDL.Nat], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
     'setStripeConfiguration' : IDL.Func([StripeConfiguration], [], []),
+    'setUpiId' : IDL.Func([IDL.Text], [], []),
     'transform' : IDL.Func(
         [TransformationInput],
         [TransformationOutput],

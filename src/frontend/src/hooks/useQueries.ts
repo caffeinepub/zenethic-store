@@ -107,6 +107,62 @@ export function useIsStripeConfigured() {
   });
 }
 
+export function useGetUpiId() {
+  const { actor, isFetching } = useActor();
+  return useQuery<string>({
+    queryKey: ["upiId"],
+    queryFn: async () => {
+      if (!actor) return "";
+      return actor.getUpiId();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSetUpiId() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      if (!actor)
+        throw new Error("Backend not ready. Please refresh the page.");
+      return actor.setUpiId(id);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["upiId"] }),
+  });
+}
+
+export function usePlaceOrderWithMethod() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      shippingAddress,
+      paymentMethod,
+      customerName,
+      customerPhone,
+    }: {
+      shippingAddress: string;
+      paymentMethod: string;
+      customerName: string;
+      customerPhone: string;
+    }) => {
+      if (!actor)
+        throw new Error("Backend not ready. Please refresh the page.");
+      return actor.placeOrderWithMethod(
+        shippingAddress,
+        paymentMethod,
+        customerName,
+        customerPhone,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
+      queryClient.invalidateQueries({ queryKey: ["userOrders"] });
+    },
+  });
+}
+
 export function useAddToCart() {
   const { actor } = useActor();
   const queryClient = useQueryClient();

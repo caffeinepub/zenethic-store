@@ -1,6 +1,5 @@
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PackageSearch, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useCategories, useProducts } from "../hooks/useQueries";
@@ -47,9 +46,13 @@ export function ProductGrid() {
   return (
     <section className="py-12">
       <div className="container mx-auto px-4">
-        <div className="mb-8">
-          <h2 className="font-display text-3xl font-bold">Our Collection</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+        {/* Section header with gold accent bar */}
+        <div className="mb-10">
+          <div className="mb-2 flex items-center gap-3">
+            <div className="h-8 w-1 rounded-full gold-gradient" />
+            <h2 className="font-display text-3xl font-bold">Our Collection</h2>
+          </div>
+          <p className="ml-4 text-sm text-muted-foreground">
             Handpicked products from world-class brands
           </p>
         </div>
@@ -66,36 +69,37 @@ export function ProductGrid() {
             />
           </div>
 
-          <Tabs value={category} onValueChange={setCategory}>
-            <TabsList className="h-auto flex-wrap gap-1 border border-border/50 bg-card">
-              <TabsTrigger
-                data-ocid="products.category_filter.tab"
-                value="all"
-                className="text-xs data-[state=active]:border-0 data-[state=active]:text-primary-foreground"
+          {/* Category pill filters */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-ocid="products.category_filter.tab"
+              className={`category-pill${category === "all" ? " active" : ""}`}
+              onClick={() => setCategory("all")}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
+              <button
+                type="button"
+                key={cat}
+                className={`category-pill${category === cat ? " active" : ""}`}
+                onClick={() => setCategory(cat)}
               >
-                All
-              </TabsTrigger>
-              {categories.map((cat) => (
-                <TabsTrigger
-                  key={cat}
-                  value={cat}
-                  className="text-xs data-[state=active]:border-0 data-[state=active]:text-primary-foreground"
-                >
-                  {cat}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+                {cat}
+              </button>
+            ))}
+          </div>
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
             {SKELETON_KEYS.map((k) => (
               <div
                 key={k}
-                className="overflow-hidden rounded-lg border border-border/50"
+                className="overflow-hidden rounded-2xl border border-border/40"
               >
-                <Skeleton className="aspect-square w-full" />
+                <Skeleton className="aspect-[3/4] w-full" />
                 <div className="space-y-2 p-4">
                   <Skeleton className="h-4 w-3/4" />
                   <Skeleton className="h-3 w-full" />
@@ -109,7 +113,7 @@ export function ProductGrid() {
             data-ocid="products.empty_state"
             className="flex flex-col items-center justify-center py-24 text-center"
           >
-            <div className="mb-6 rounded-full border border-primary/20 p-6">
+            <div className="mb-6 rounded-full border border-primary/20 p-6 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
               <PackageSearch className="h-12 w-12 text-primary/60" />
             </div>
             <h3 className="mb-2 font-display text-2xl font-semibold">
@@ -126,7 +130,7 @@ export function ProductGrid() {
         ) : (
           <div
             data-ocid="products.list"
-            className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4"
+            className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4"
           >
             {filtered.map((product, index) => (
               <ProductCard
