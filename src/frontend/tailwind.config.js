@@ -16,8 +16,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        display: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
+        sans: ['"Satoshi"', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "oklch(var(--border))",
@@ -78,10 +78,10 @@ export default {
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
-        gold: "0 0 40px -8px oklch(72% 0.18 78 / 0.35)",
-        "gold-sm": "0 0 20px -4px oklch(72% 0.18 78 / 0.25)",
-        card: "0 4px 24px -4px rgba(0,0,0,0.4)",
-        "card-hover": "0 20px 40px -8px rgba(0,0,0,0.5)",
+        crimson: "0 0 40px -8px oklch(55% 0.23 15 / 0.4)",
+        "crimson-sm": "0 0 20px -4px oklch(55% 0.23 15 / 0.25)",
+        card: "0 4px 24px -4px rgba(0,0,0,0.6)",
+        "card-hover": "0 20px 40px -8px rgba(0,0,0,0.7)",
       },
       keyframes: {
         "accordion-down": {
@@ -96,16 +96,11 @@ export default {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
-        "pulse-soft": {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.7" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: "shimmer 2s infinite linear",
-        "pulse-soft": "pulse-soft 2.5s ease-in-out infinite",
       },
     },
   },

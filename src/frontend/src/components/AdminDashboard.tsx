@@ -157,9 +157,34 @@ export function AdminDashboard() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const dataUrl = ev.target?.result as string;
-      setForm((f) => ({ ...f, imageUrl: dataUrl }));
-      setImageUrlInput("");
+      const originalDataUrl = ev.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 600;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) {
+            height = Math.round((height * MAX) / width);
+            width = MAX;
+          } else {
+            width = Math.round((width * MAX) / height);
+            height = MAX;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setForm((f) => ({ ...f, imageUrl: originalDataUrl }));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL("image/jpeg", 0.7);
+        setForm((f) => ({ ...f, imageUrl: compressed }));
+        setImageUrlInput("");
+      };
+      img.src = originalDataUrl;
     };
     reader.readAsDataURL(file);
   };
@@ -193,6 +218,15 @@ export function AdminDashboard() {
     const stockNum = Number.parseInt(form.stock, 10);
     if (!form.stock || Number.isNaN(stockNum) || stockNum < 0) {
       toast.error("Valid stock quantity is required");
+      return;
+    }
+
+    if (!form.category.trim()) {
+      toast.error("Category is required");
+      return;
+    }
+    if (!form.description.trim()) {
+      toast.error("Description is required");
       return;
     }
 
@@ -232,8 +266,18 @@ export function AdminDashboard() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Product save error:", error);
-      const message =
-        error instanceof Error ? error.message : "Failed to save product";
+      let message = "Failed to save product. Please try again.";
+      if (error instanceof Error) {
+        if (
+          error.message.includes("QuotaExceeded") ||
+          error.message.includes("storage")
+        ) {
+          message =
+            "Storage full. Please use an image URL instead of uploading.";
+        } else {
+          message = error.message;
+        }
+      }
       toast.error(message);
     }
   };
@@ -294,806 +338,1090 @@ export function AdminDashboard() {
   };
 
   return (
-    <section className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your Zenethic store
-        </p>
-      </div>
+    <section className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="font-display text-3xl font-bold text-gray-900">
+            Admin Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage your Zenethic store
+          </p>
+        </div>
 
-      <Tabs defaultValue="products">
-        <TabsList className="mb-6 border border-border/50 bg-card">
-          <TabsTrigger data-ocid="admin.products_tab" value="products">
-            Products
-          </TabsTrigger>
-          <TabsTrigger data-ocid="admin.orders_tab" value="orders">
-            Orders
-          </TabsTrigger>
-          <TabsTrigger data-ocid="admin.stats_tab" value="stats">
-            Stats
-          </TabsTrigger>
-          <TabsTrigger data-ocid="admin.settings_tab" value="settings">
-            Settings
-          </TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="products">
+          <TabsList className="mb-6 bg-white border border-gray-200">
+            <TabsTrigger
+              data-ocid="admin.products_tab"
+              value="products"
+              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+            >
+              Products
+            </TabsTrigger>
+            <TabsTrigger
+              data-ocid="admin.orders_tab"
+              value="orders"
+              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+            >
+              Orders
+            </TabsTrigger>
+            <TabsTrigger
+              data-ocid="admin.customers_tab"
+              value="customers"
+              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+            >
+              Customers
+            </TabsTrigger>
+            <TabsTrigger
+              data-ocid="admin.stats_tab"
+              value="stats"
+              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+            >
+              Stats
+            </TabsTrigger>
+            <TabsTrigger
+              data-ocid="admin.settings_tab"
+              value="settings"
+              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+            >
+              Settings
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Products Tab */}
-        <TabsContent value="products">
-          <div className="space-y-6">
-            {/* Quick Add Sample Products */}
-            <Collapsible open={samplesOpen} onOpenChange={setSamplesOpen}>
-              <div className="rounded-xl border border-primary/20 bg-primary/5">
-                <CollapsibleTrigger asChild>
-                  <button
-                    type="button"
-                    data-ocid="admin.samples_toggle"
-                    className="flex w-full items-center justify-between px-5 py-4 text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      <span className="font-semibold text-sm">
-                        Quick Add Sample Products
-                      </span>
-                      <Badge
-                        variant="secondary"
-                        className="text-xs px-1.5 py-0"
-                      >
-                        5 products
-                      </Badge>
-                    </div>
-                    {samplesOpen ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2 lg:grid-cols-5">
-                    {SAMPLE_PRODUCTS.map((sample, i) => (
-                      <div
-                        key={sample.name}
-                        data-ocid={`admin.sample.card.${i + 1}`}
-                        className="group relative overflow-hidden rounded-lg border border-border/50 bg-card p-3 transition-shadow hover:shadow-md"
-                      >
-                        <div className="mb-2 aspect-square w-full overflow-hidden rounded-md bg-muted">
-                          <img
-                            src={sample.imageUrl}
-                            alt={sample.name}
-                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src =
-                                "/assets/generated/product-handbag.dim_600x600.jpg";
-                            }}
-                          />
-                        </div>
-                        <p className="mb-0.5 text-xs font-semibold leading-tight line-clamp-2">
-                          {sample.name}
-                        </p>
-                        <p className="mb-2 text-xs text-primary font-bold">
-                          ₹{sample.price}
-                        </p>
-                        <Button
-                          data-ocid={`admin.sample.use_button.${i + 1}`}
-                          size="sm"
-                          className="gold-gradient h-7 w-full border-0 text-xs text-primary-foreground hover:opacity-90"
-                          onClick={() => applySample(sample)}
-                        >
-                          Use This
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
-
-            {/* Form + Products Table */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Form */}
-              <Card id="product-form-card" className="border-border/50 bg-card">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg">
-                    {editingProduct ? "Edit Product" : "Add New Product"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleFormSubmit} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pname">Product Name</Label>
-                      <Input
-                        id="pname"
-                        data-ocid="admin.product_form.name_input"
-                        value={form.name}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, name: e.target.value }))
-                        }
-                        placeholder="e.g. Women's Floral Kurti"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pdesc">Description</Label>
-                      <Textarea
-                        id="pdesc"
-                        value={form.description}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            description: e.target.value,
-                          }))
-                        }
-                        placeholder="Describe the product..."
-                        rows={2}
-                        required
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="pprice">Price (INR)</Label>
-                        <Input
-                          id="pprice"
-                          data-ocid="admin.product_form.price_input"
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={form.price}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, price: e.target.value }))
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="pstock">Stock</Label>
-                        <Input
-                          id="pstock"
-                          type="number"
-                          min="0"
-                          placeholder="0"
-                          value={form.stock}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, stock: e.target.value }))
-                          }
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="pcat">Category</Label>
-                      <Input
-                        id="pcat"
-                        value={form.category}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, category: e.target.value }))
-                        }
-                        placeholder="e.g. Clothing"
-                        required
-                      />
-                    </div>
-
-                    {/* Image Picker */}
-                    <div className="space-y-2">
-                      <Label>Product Image</Label>
-
-                      {/* Hidden file input */}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileSelect}
-                      />
-
-                      {/* Upload from gallery button */}
-                      <button
-                        type="button"
-                        data-ocid="admin.product_form.upload_button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center transition-colors hover:border-primary/50 hover:bg-primary/5"
-                      >
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 bg-background">
-                          <ImagePlus className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">
-                            Upload from Gallery / Album
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Tap to pick a photo from your device
-                          </p>
-                        </div>
-                      </button>
-
-                      {/* OR divider */}
-                      <div className="relative flex items-center gap-3 py-1">
-                        <div className="h-px flex-1 bg-border/60" />
-                        <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                          OR
+          {/* Products Tab */}
+          <TabsContent value="products">
+            <div className="space-y-6">
+              {/* Quick Add Sample Products */}
+              <Collapsible open={samplesOpen} onOpenChange={setSamplesOpen}>
+                <div className="rounded-xl border border-amber-200 bg-amber-50">
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      data-ocid="admin.samples_toggle"
+                      className="flex w-full items-center justify-between px-5 py-4 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-amber-600" />
+                        <span className="font-semibold text-sm text-gray-900">
+                          Quick Add Sample Products
                         </span>
-                        <div className="h-px flex-1 bg-border/60" />
+                        <Badge
+                          variant="secondary"
+                          className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800"
+                        >
+                          5 products
+                        </Badge>
                       </div>
-
-                      {/* URL input */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">
-                            Or paste image URL
-                          </span>
+                      {samplesOpen ? (
+                        <ChevronUp className="h-4 w-4 text-gray-500" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-500" />
+                      )}
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2 lg:grid-cols-5">
+                      {SAMPLE_PRODUCTS.map((sample, i) => (
+                        <div
+                          key={sample.name}
+                          data-ocid={`admin.sample.card.${i + 1}`}
+                          className="group relative overflow-hidden rounded-lg border border-gray-200 bg-white p-3 transition-shadow hover:shadow-md"
+                        >
+                          <div className="mb-2 aspect-square w-full overflow-hidden rounded-md bg-gray-100">
+                            <img
+                              src={sample.imageUrl}
+                              alt={sample.name}
+                              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src =
+                                  "/assets/generated/product-handbag.dim_600x600.jpg";
+                              }}
+                            />
+                          </div>
+                          <p className="mb-0.5 text-xs font-semibold leading-tight line-clamp-2 text-gray-900">
+                            {sample.name}
+                          </p>
+                          <p className="mb-2 text-xs font-bold text-amber-600">
+                            ₹{sample.price}
+                          </p>
+                          <Button
+                            data-ocid={`admin.sample.use_button.${i + 1}`}
+                            size="sm"
+                            className="gold-gradient h-7 w-full border-0 text-xs text-primary-foreground hover:opacity-90"
+                            onClick={() => applySample(sample)}
+                          >
+                            Use This
+                          </Button>
                         </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+
+              {/* Form + Products Table */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Form */}
+                <Card
+                  id="product-form-card"
+                  className="border-gray-200 bg-white shadow-sm"
+                >
+                  <CardHeader className="border-b border-gray-100">
+                    <CardTitle className="font-display text-lg text-gray-900">
+                      {editingProduct ? "Edit Product" : "Add New Product"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-5">
+                    <form onSubmit={handleFormSubmit} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <Label
+                          htmlFor="pname"
+                          className="text-gray-800 font-medium"
+                        >
+                          Product Name
+                        </Label>
                         <Input
-                          id="pimg"
-                          data-ocid="admin.product_form.image_url_input"
-                          value={imageUrlInput}
-                          onChange={handleImageUrlChange}
-                          placeholder="https://example.com/image.jpg"
+                          id="pname"
+                          data-ocid="admin.product_form.name_input"
+                          value={form.name}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, name: e.target.value }))
+                          }
+                          placeholder="e.g. Women's Floral Kurti"
+                          required
+                          className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-500"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label
+                          htmlFor="pdesc"
+                          className="text-gray-800 font-medium"
+                        >
+                          Description
+                        </Label>
+                        <Textarea
+                          id="pdesc"
+                          value={form.description}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              description: e.target.value,
+                            }))
+                          }
+                          placeholder="Describe the product..."
+                          rows={2}
+                          required
+                          className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-500"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="pprice"
+                            className="text-gray-800 font-medium"
+                          >
+                            Price (INR)
+                          </Label>
+                          <Input
+                            id="pprice"
+                            data-ocid="admin.product_form.price_input"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            value={form.price}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, price: e.target.value }))
+                            }
+                            required
+                            className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-500"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor="pstock"
+                            className="text-gray-800 font-medium"
+                          >
+                            Stock
+                          </Label>
+                          <Input
+                            id="pstock"
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={form.stock}
+                            onChange={(e) =>
+                              setForm((f) => ({ ...f, stock: e.target.value }))
+                            }
+                            required
+                            className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label
+                          htmlFor="pcat"
+                          className="text-gray-800 font-medium"
+                        >
+                          Category
+                        </Label>
+                        <Input
+                          id="pcat"
+                          value={form.category}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, category: e.target.value }))
+                          }
+                          placeholder="e.g. Clothing"
+                          required
+                          className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-500"
                         />
                       </div>
 
-                      {/* Preview */}
-                      {form.imageUrl && (
-                        <div className="relative mt-1 overflow-hidden rounded-lg border border-border/50 bg-muted/20">
-                          <img
-                            src={form.imageUrl}
-                            alt="Product preview"
-                            className="h-36 w-full object-contain p-2"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display =
-                                "none";
-                            }}
-                          />
-                          <button
-                            type="button"
-                            onClick={clearImage}
-                            className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 shadow-sm transition-colors hover:bg-destructive hover:text-destructive-foreground"
-                            title="Remove image"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                          <p className="pb-1 text-center text-xs text-muted-foreground">
-                            Preview
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                      {/* Image Picker */}
+                      <div className="space-y-2">
+                        <Label className="text-gray-800 font-medium">
+                          Product Image
+                        </Label>
 
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        id="pactive"
-                        checked={form.isActive}
-                        onCheckedChange={(v) =>
-                          setForm((f) => ({ ...f, isActive: v }))
-                        }
-                      />
-                      <Label htmlFor="pactive">Active (visible in store)</Label>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        data-ocid="admin.product_form.submit_button"
-                        type="submit"
-                        className="gold-gradient flex-1 border-0 text-primary-foreground hover:opacity-90"
-                        disabled={
-                          createProduct.isPending || updateProduct.isPending
-                        }
-                      >
-                        {createProduct.isPending || updateProduct.isPending ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : editingProduct ? (
-                          "Update Product"
-                        ) : (
-                          <>
-                            <Plus className="mr-1.5 h-4 w-4" />
-                            Add Product
-                          </>
-                        )}
-                      </Button>
-                      {editingProduct && (
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setEditingProduct(null);
-                            setForm(EMPTY_FORM);
-                            setImageUrlInput("");
-                          }}
+                        {/* Hidden file input */}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileSelect}
+                        />
+
+                        {/* Upload from gallery button */}
+                        <button
+                          type="button"
+                          data-ocid="admin.product_form.upload_button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center transition-colors hover:border-gray-400 hover:bg-gray-100"
                         >
-                          Cancel
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white">
+                            <ImagePlus className="h-5 w-5 text-gray-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">
+                              Upload from Gallery / Album
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Tap to pick a photo from your device
+                            </p>
+                          </div>
+                        </button>
+
+                        {/* OR divider */}
+                        <div className="relative flex items-center gap-3 py-1">
+                          <div className="h-px flex-1 bg-gray-200" />
+                          <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                            OR
+                          </span>
+                          <div className="h-px flex-1 bg-gray-200" />
+                        </div>
+
+                        {/* URL input */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2">
+                            <ImageIcon className="h-3.5 w-3.5 text-gray-400" />
+                            <span className="text-xs text-gray-500">
+                              Or paste image URL
+                            </span>
+                          </div>
+                          <Input
+                            id="pimg"
+                            data-ocid="admin.product_form.image_url_input"
+                            value={imageUrlInput}
+                            onChange={handleImageUrlChange}
+                            placeholder="https://example.com/image.jpg"
+                            className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-500"
+                          />
+                        </div>
+
+                        {/* Preview */}
+                        {form.imageUrl && (
+                          <div className="relative mt-1 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                            <img
+                              src={form.imageUrl}
+                              alt="Product preview"
+                              className="h-36 w-full object-contain p-2"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={clearImage}
+                              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200 transition-colors hover:bg-red-50 hover:text-red-600"
+                              title="Remove image"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                            <p className="pb-1 text-center text-xs text-gray-500">
+                              Preview
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="pactive"
+                          checked={form.isActive}
+                          onCheckedChange={(v) =>
+                            setForm((f) => ({ ...f, isActive: v }))
+                          }
+                        />
+                        <Label htmlFor="pactive" className="text-gray-800">
+                          Active (visible in store)
+                        </Label>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          data-ocid="admin.product_form.submit_button"
+                          type="submit"
+                          className="gold-gradient flex-1 border-0 text-primary-foreground hover:opacity-90"
+                          disabled={
+                            createProduct.isPending || updateProduct.isPending
+                          }
+                        >
+                          {createProduct.isPending ||
+                          updateProduct.isPending ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : editingProduct ? (
+                            "Update Product"
+                          ) : (
+                            <>
+                              <Plus className="mr-1.5 h-4 w-4" />
+                              Add Product
+                            </>
+                          )}
                         </Button>
-                      )}
+                        {editingProduct && (
+                          <Button
+                            variant="outline"
+                            className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                            onClick={() => {
+                              setEditingProduct(null);
+                              setForm(EMPTY_FORM);
+                              setImageUrlInput("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                {/* Products Table */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900">
+                      All Products ({products.length})
+                    </h3>
+                    <Button
+                      data-ocid="admin.add_product_button"
+                      size="sm"
+                      className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
+                      onClick={() => {
+                        setEditingProduct(null);
+                        setForm(EMPTY_FORM);
+                        setImageUrlInput("");
+                      }}
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" /> Add New
+                    </Button>
+                  </div>
+
+                  {productsLoading ? (
+                    <div
+                      data-ocid="admin.products.loading_state"
+                      className="py-12 text-center text-sm text-gray-500"
+                    >
+                      Loading...
                     </div>
-                  </form>
-                </CardContent>
-              </Card>
-
-              {/* Products Table */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium">
-                    All Products ({products.length})
-                  </h3>
-                  <Button
-                    data-ocid="admin.add_product_button"
-                    size="sm"
-                    className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
-                    onClick={() => {
-                      setEditingProduct(null);
-                      setForm(EMPTY_FORM);
-                      setImageUrlInput("");
-                    }}
-                  >
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Add New
-                  </Button>
+                  ) : products.length === 0 ? (
+                    <div
+                      data-ocid="admin.products.empty_state"
+                      className="rounded-lg border border-gray-200 bg-white py-12 text-center"
+                    >
+                      <p className="text-sm text-gray-500">
+                        No products yet. Use a sample above or add your own!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="border-gray-200 bg-gray-50">
+                            <TableHead className="text-gray-700 font-semibold">
+                              Name
+                            </TableHead>
+                            <TableHead className="text-gray-700 font-semibold">
+                              Price
+                            </TableHead>
+                            <TableHead className="text-gray-700 font-semibold">
+                              Stock
+                            </TableHead>
+                            <TableHead className="text-gray-700 font-semibold">
+                              Status
+                            </TableHead>
+                            <TableHead className="text-right text-gray-700 font-semibold">
+                              Actions
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {products.map((product, i) => (
+                            <TableRow
+                              key={String(product.id)}
+                              data-ocid={`admin.product.row.${i + 1}`}
+                              className="border-gray-100 hover:bg-gray-50"
+                            >
+                              <TableCell className="max-w-[140px] truncate font-medium text-sm text-gray-900">
+                                {product.name}
+                              </TableCell>
+                              <TableCell className="text-sm text-gray-800">
+                                ₹{(Number(product.price) / 100).toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-sm text-gray-800">
+                                {String(product.stockQuantity)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    product.isActive ? "default" : "secondary"
+                                  }
+                                  className={
+                                    product.isActive
+                                      ? "gold-gradient border-0 text-primary-foreground"
+                                      : "bg-gray-100 text-gray-600"
+                                  }
+                                >
+                                  {product.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button
+                                    data-ocid={`admin.product.edit_button.${i + 1}`}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                                    onClick={() => startEdit(product)}
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    data-ocid={`admin.product.delete_button.${i + 1}`}
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-gray-600 hover:text-red-600 hover:bg-red-50"
+                                    onClick={() => setDeleteConfirm(product)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </div>
+              </div>
+            </div>
+          </TabsContent>
 
-                {productsLoading ? (
-                  <div
-                    data-ocid="admin.products.loading_state"
-                    className="py-12 text-center text-sm text-muted-foreground"
-                  >
+          {/* Orders Tab */}
+          <TabsContent value="orders">
+            <Card className="border-gray-200 bg-white shadow-sm">
+              <CardHeader className="border-b border-gray-100">
+                <CardTitle className="font-display text-lg text-gray-900">
+                  All Orders ({orders.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                {ordersLoading ? (
+                  <div className="py-12 text-center text-sm text-gray-500">
                     Loading...
                   </div>
-                ) : products.length === 0 ? (
-                  <div
-                    data-ocid="admin.products.empty_state"
-                    className="rounded-lg border border-border/50 bg-card py-12 text-center"
-                  >
-                    <p className="text-sm text-muted-foreground">
-                      No products yet. Use a sample above or add your own!
-                    </p>
+                ) : orders.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-gray-500">
+                    No orders yet
                   </div>
                 ) : (
-                  <div className="overflow-hidden rounded-lg border border-border/50">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-gray-200 bg-gray-50">
+                        <TableHead className="text-gray-700 font-semibold">
+                          Order #
+                        </TableHead>
+                        <TableHead className="text-gray-700 font-semibold">
+                          Customer
+                        </TableHead>
+                        <TableHead className="text-gray-700 font-semibold">
+                          Date
+                        </TableHead>
+                        <TableHead className="text-gray-700 font-semibold">
+                          Items
+                        </TableHead>
+                        <TableHead className="text-gray-700 font-semibold">
+                          Total
+                        </TableHead>
+                        <TableHead className="text-gray-700 font-semibold">
+                          Payment
+                        </TableHead>
+                        <TableHead className="text-gray-700 font-semibold">
+                          Status
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orders.map((order, i) => (
+                        <TableRow
+                          key={String(order.id)}
+                          data-ocid={`admin.order.row.${i + 1}`}
+                          className="border-gray-100 hover:bg-gray-50"
+                        >
+                          <TableCell className="font-mono text-sm text-gray-800">
+                            #{String(order.id).padStart(6, "0")}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {order.customerName ? (
+                              <div>
+                                <div className="font-semibold text-gray-900">
+                                  {order.customerName}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {order.customerPhone}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-800">
+                            {new Date(
+                              Number(order.createdAt) / 1_000_000,
+                            ).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-800">
+                            {order.items.length}
+                          </TableCell>
+                          <TableCell className="text-sm font-semibold text-gray-900">
+                            ₹{(Number(order.totalAmount) / 100).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            {order.paymentMethod ? (
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  order.paymentMethod === "cod"
+                                    ? "bg-amber-100 text-amber-800"
+                                    : order.paymentMethod === "upi"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : "gold-gradient border-0 text-primary-foreground"
+                                }
+                              >
+                                {order.paymentMethod.toUpperCase()}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={order.status}
+                              onValueChange={(status) =>
+                                updateOrderStatus.mutate({
+                                  orderId: order.id,
+                                  status,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="h-7 w-32 text-xs border-gray-300 bg-white text-gray-800">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-white">
+                                <SelectItem
+                                  value="pending"
+                                  className="text-gray-800"
+                                >
+                                  Pending
+                                </SelectItem>
+                                <SelectItem
+                                  value="processing"
+                                  className="text-gray-800"
+                                >
+                                  Processing
+                                </SelectItem>
+                                <SelectItem
+                                  value="shipped"
+                                  className="text-gray-800"
+                                >
+                                  Shipped
+                                </SelectItem>
+                                <SelectItem
+                                  value="delivered"
+                                  className="text-gray-800"
+                                >
+                                  Delivered
+                                </SelectItem>
+                                <SelectItem
+                                  value="cancelled"
+                                  className="text-gray-800"
+                                >
+                                  Cancelled
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Customers Tab */}
+          <TabsContent value="customers" data-ocid="admin.customers_content">
+            <Card className="border-gray-200 bg-white shadow-sm">
+              <CardHeader className="border-b border-gray-100">
+                <CardTitle className="font-display text-lg text-gray-900">
+                  Customer Details ({orders.length})
+                </CardTitle>
+                <p className="text-sm text-gray-500">
+                  All customer contact info and addresses for order fulfillment
+                </p>
+              </CardHeader>
+              <CardContent className="p-0">
+                {ordersLoading ? (
+                  <div className="py-12 text-center text-sm text-gray-500">
+                    Loading...
+                  </div>
+                ) : orders.length === 0 ? (
+                  <div
+                    data-ocid="admin.customers_empty_state"
+                    className="py-12 text-center text-sm text-gray-500"
+                  >
+                    No orders yet
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-border/50">
-                          <TableHead>Name</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Stock</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                        <TableRow className="border-gray-200 bg-gray-50">
+                          <TableHead className="text-gray-700 font-semibold">
+                            Customer
+                          </TableHead>
+                          <TableHead className="text-gray-700 font-semibold">
+                            Phone
+                          </TableHead>
+                          <TableHead className="text-gray-700 font-semibold">
+                            Delivery Address
+                          </TableHead>
+                          <TableHead className="text-gray-700 font-semibold">
+                            Order #
+                          </TableHead>
+                          <TableHead className="text-gray-700 font-semibold">
+                            Date
+                          </TableHead>
+                          <TableHead className="text-gray-700 font-semibold">
+                            Amount
+                          </TableHead>
+                          <TableHead className="text-gray-700 font-semibold">
+                            Payment
+                          </TableHead>
+                          <TableHead className="text-gray-700 font-semibold">
+                            Status
+                          </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {products.map((product, i) => (
-                          <TableRow
-                            key={String(product.id)}
-                            data-ocid={`admin.product.row.${i + 1}`}
-                            className="border-border/50"
-                          >
-                            <TableCell className="max-w-[140px] truncate font-medium text-sm">
-                              {product.name}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              ₹{(Number(product.price) / 100).toFixed(2)}
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {String(product.stockQuantity)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  product.isActive ? "default" : "secondary"
-                                }
-                                className={
-                                  product.isActive
-                                    ? "gold-gradient border-0 text-primary-foreground"
-                                    : ""
-                                }
-                              >
-                                {product.isActive ? "Active" : "Inactive"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  data-ocid={`admin.product.edit_button.${i + 1}`}
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 hover:text-primary"
-                                  onClick={() => startEdit(product)}
+                        {[...orders]
+                          .sort(
+                            (a, b) => Number(b.createdAt) - Number(a.createdAt),
+                          )
+                          .map((order, i) => (
+                            <TableRow
+                              key={String(order.id)}
+                              data-ocid={`admin.customers.item.${i + 1}`}
+                              className="border-gray-100 hover:bg-gray-50"
+                            >
+                              <TableCell className="font-semibold text-sm text-gray-900">
+                                {order.customerName || "—"}
+                              </TableCell>
+                              <TableCell className="text-sm text-gray-800">
+                                {order.customerPhone || "—"}
+                              </TableCell>
+                              <TableCell className="text-sm text-gray-800 max-w-[200px]">
+                                <div
+                                  className="truncate"
+                                  title={order.shippingAddress}
                                 >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  data-ocid={`admin.product.delete_button.${i + 1}`}
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 hover:text-destructive"
-                                  onClick={() => setDeleteConfirm(product)}
+                                  {order.shippingAddress || "—"}
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-mono text-sm text-gray-800">
+                                #{String(order.id).padStart(6, "0")}
+                              </TableCell>
+                              <TableCell className="text-sm whitespace-nowrap text-gray-800">
+                                {new Date(
+                                  Number(order.createdAt) / 1_000_000,
+                                ).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="text-sm font-semibold text-gray-900">
+                                ₹{(Number(order.totalAmount) / 100).toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                {order.paymentMethod ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className={
+                                      order.paymentMethod === "cod"
+                                        ? "bg-amber-100 text-amber-800"
+                                        : order.paymentMethod === "upi"
+                                          ? "bg-purple-100 text-purple-800"
+                                          : "gold-gradient border-0 text-primary-foreground"
+                                    }
+                                  >
+                                    {order.paymentMethod.toUpperCase()}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-xs text-gray-400">
+                                    —
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="secondary"
+                                  className={
+                                    order.status === "delivered"
+                                      ? "bg-green-100 text-green-800"
+                                      : order.status === "cancelled"
+                                        ? "bg-red-100 text-red-800"
+                                        : order.status === "processing"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : "bg-yellow-100 text-yellow-800"
+                                  }
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                  {order.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
                       </TableBody>
                     </Table>
                   </div>
                 )}
-              </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Stats Tab */}
+          <TabsContent value="stats">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  label: "Total Orders",
+                  value: stats ? String(stats.totalOrders) : "—",
+                  icon: ShoppingBag,
+                  desc: "All time",
+                },
+                {
+                  label: "Total Revenue",
+                  value: stats
+                    ? `₹${(Number(stats.totalRevenue) / 100).toFixed(2)}`
+                    : "—",
+                  icon: DollarSign,
+                  desc: "All time",
+                },
+                {
+                  label: "Total Products",
+                  value: stats ? String(stats.productCount) : "—",
+                  icon: Package,
+                  desc: "In catalog",
+                },
+                {
+                  label: "Active Products",
+                  value: stats ? String(stats.activeProductCount) : "—",
+                  icon: TrendingUp,
+                  desc: "Visible in store",
+                },
+              ].map((stat) => (
+                <Card
+                  key={stat.label}
+                  className="border-gray-200 bg-white shadow-sm"
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">
+                          {stat.label}
+                        </p>
+                        <p className="mt-1 font-display text-2xl font-bold text-gray-900">
+                          {stat.value}
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {stat.desc}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-2">
+                        <stat.icon className="h-5 w-5 text-amber-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
 
-        {/* Orders Tab */}
-        <TabsContent value="orders">
-          <Card className="border-border/50 bg-card">
-            <CardHeader>
-              <CardTitle className="font-display text-lg">
-                All Orders ({orders.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {ordersLoading ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  Loading...
-                </div>
-              ) : orders.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  No orders yet
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50">
-                      <TableHead>Order #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order, i) => (
-                      <TableRow
-                        key={String(order.id)}
-                        data-ocid={`admin.order.row.${i + 1}`}
-                        className="border-border/50"
+          {/* Settings Tab */}
+          <TabsContent value="settings">
+            <div className="space-y-4">
+              {/* Store Link Card */}
+              <Card className="max-w-lg border-gray-200 bg-white shadow-sm">
+                <CardHeader className="border-b border-gray-100">
+                  <CardTitle className="font-display text-lg text-gray-900">
+                    Your Store Link
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-5">
+                  <p className="mb-3 text-sm text-gray-600">
+                    Share this link with your customers so they can visit your
+                    store.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      data-ocid="admin.store_link.input"
+                      readOnly
+                      value={window.location.origin}
+                      className="font-mono text-sm border-gray-300 bg-gray-50 text-gray-800"
+                    />
+                    <Button
+                      data-ocid="admin.store_link.button"
+                      type="button"
+                      variant="outline"
+                      className="shrink-0 border-gray-300 text-gray-700 hover:bg-gray-100"
+                      onClick={handleCopyStoreLink}
+                    >
+                      <Copy className="mr-1.5 h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* UPI ID Card */}
+              <Card className="max-w-lg border-gray-200 bg-white shadow-sm">
+                <CardHeader className="border-b border-gray-100">
+                  <CardTitle className="font-display text-lg text-gray-900">
+                    UPI ID
+                  </CardTitle>
+                  {upiId && (
+                    <p className="text-sm text-gray-600">
+                      Current:{" "}
+                      <span className="font-mono font-semibold text-gray-900">
+                        {upiId}
+                      </span>
+                    </p>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-5">
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      try {
+                        await setUpiId.mutateAsync(upiIdInput);
+                        toast.success("UPI ID saved!");
+                        setUpiIdInput("");
+                      } catch {
+                        toast.error("Failed to save UPI ID");
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="upi-id-input"
+                        className="text-gray-800 font-medium"
                       >
-                        <TableCell className="font-mono text-sm">
-                          #{String(order.id).padStart(6, "0")}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {new Date(
-                            Number(order.createdAt) / 1_000_000,
-                          ).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {order.items.length}
-                        </TableCell>
-                        <TableCell className="text-sm font-medium">
-                          ₹{(Number(order.totalAmount) / 100).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          {order.paymentMethod ? (
-                            <Badge
-                              variant="secondary"
-                              className={
-                                order.paymentMethod === "cod"
-                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                  : order.paymentMethod === "upi"
-                                    ? "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400"
-                                    : "gold-gradient border-0 text-primary-foreground"
-                              }
-                            >
-                              {order.paymentMethod.toUpperCase()}
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Select
-                            value={order.status}
-                            onValueChange={(status) =>
-                              updateOrderStatus.mutate({
-                                orderId: order.id,
-                                status,
-                              })
-                            }
-                          >
-                            <SelectTrigger className="h-7 w-32 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="processing">
-                                Processing
-                              </SelectItem>
-                              <SelectItem value="shipped">Shipped</SelectItem>
-                              <SelectItem value="delivered">
-                                Delivered
-                              </SelectItem>
-                              <SelectItem value="cancelled">
-                                Cancelled
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Stats Tab */}
-        <TabsContent value="stats">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                label: "Total Orders",
-                value: stats ? String(stats.totalOrders) : "—",
-                icon: ShoppingBag,
-                desc: "All time",
-              },
-              {
-                label: "Total Revenue",
-                value: stats
-                  ? `₹${(Number(stats.totalRevenue) / 100).toFixed(2)}`
-                  : "—",
-                icon: DollarSign,
-                desc: "All time",
-              },
-              {
-                label: "Total Products",
-                value: stats ? String(stats.productCount) : "—",
-                icon: Package,
-                desc: "In catalog",
-              },
-              {
-                label: "Active Products",
-                value: stats ? String(stats.activeProductCount) : "—",
-                icon: TrendingUp,
-                desc: "Visible in store",
-              },
-            ].map((stat) => (
-              <Card key={stat.label} className="border-border/50 bg-card">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        {stat.label}
-                      </p>
-                      <p className="mt-1 font-display text-2xl font-bold gold-text">
-                        {stat.value}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {stat.desc}
+                        Your UPI ID
+                      </Label>
+                      <Input
+                        id="upi-id-input"
+                        data-ocid="admin.upi_id.input"
+                        placeholder="yourname@upi"
+                        value={upiIdInput}
+                        onChange={(e) => setUpiIdInput(e.target.value)}
+                        required
+                        className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Customers will see this ID to send UPI payments.
                       </p>
                     </div>
-                    <div className="rounded-lg border border-primary/20 p-2">
-                      <stat.icon className="h-5 w-5 text-primary" />
+                    <Button
+                      data-ocid="admin.upi_id.save_button"
+                      type="submit"
+                      className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
+                      disabled={setUpiId.isPending}
+                    >
+                      {setUpiId.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save UPI ID"
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Payment Mode Card */}
+              <Card className="max-w-lg border-gray-200 bg-white shadow-sm">
+                <CardHeader className="border-b border-gray-100">
+                  <CardTitle className="font-display text-lg text-gray-900">
+                    Payment Mode
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-5">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-2">
+                      <CreditCard className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm text-gray-900">
+                        Stripe
+                      </p>
+                      <p className="mt-0.5 text-sm text-gray-600">
+                        Payments are processed securely via Stripe. Configure
+                        your Stripe key below to enable checkout.
+                      </p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </TabsContent>
 
-        {/* Settings Tab */}
-        <TabsContent value="settings">
-          <div className="space-y-4">
-            {/* Store Link Card */}
-            <Card className="max-w-lg border-border/50 bg-card">
-              <CardHeader>
-                <CardTitle className="font-display text-lg">
-                  Your Store Link
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="mb-3 text-sm text-muted-foreground">
-                  Share this link with your customers so they can visit your
-                  store.
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    data-ocid="admin.store_link.input"
-                    readOnly
-                    value={window.location.origin}
-                    className="font-mono text-sm"
-                  />
-                  <Button
-                    data-ocid="admin.store_link.button"
-                    type="button"
-                    variant="outline"
-                    className="shrink-0 border-primary/40 hover:bg-primary hover:text-primary-foreground"
-                    onClick={handleCopyStoreLink}
-                  >
-                    <Copy className="mr-1.5 h-4 w-4" />
-                    Copy
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+              {/* Stripe Configuration Card */}
+              <Card className="max-w-lg border-gray-200 bg-white shadow-sm">
+                <CardHeader className="border-b border-gray-100">
+                  <CardTitle className="font-display text-lg text-gray-900">
+                    Stripe Configuration
+                  </CardTitle>
+                  {stripeConfigured !== undefined && (
+                    <Badge
+                      variant={stripeConfigured ? "default" : "secondary"}
+                      className={
+                        stripeConfigured
+                          ? "gold-gradient border-0 text-primary-foreground w-fit"
+                          : "w-fit bg-gray-100 text-gray-700"
+                      }
+                    >
+                      {stripeConfigured ? "✓ Configured" : "Not configured"}
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-5">
+                  <form onSubmit={handleSaveStripe} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="stripe-key"
+                        className="text-gray-800 font-medium"
+                      >
+                        Stripe Secret Key
+                      </Label>
+                      <Input
+                        id="stripe-key"
+                        type="password"
+                        placeholder="sk_live_... or sk_test_..."
+                        value={stripeKey}
+                        onChange={(e) => setStripeKey(e.target.value)}
+                        required
+                        className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400"
+                      />
+                      <p className="text-xs text-gray-500">
+                        Your Stripe secret key. Keep this confidential.
+                      </p>
+                    </div>
+                    <Button
+                      type="submit"
+                      className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
+                      disabled={setStripeConfig.isPending}
+                    >
+                      {setStripeConfig.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Configuration"
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
 
-            {/* UPI ID Card */}
-            <Card className="max-w-lg border-border/50 bg-card">
-              <CardHeader>
-                <CardTitle className="font-display text-lg">UPI ID</CardTitle>
-                {upiId && (
-                  <p className="text-sm text-muted-foreground">
-                    Current:{" "}
-                    <span className="font-mono font-semibold text-foreground">
-                      {upiId}
-                    </span>
-                  </p>
+        {/* Delete Confirm Dialog */}
+        <Dialog
+          open={!!deleteConfirm}
+          onOpenChange={(v) => !v && setDeleteConfirm(null)}
+        >
+          <DialogContent className="border-gray-200 bg-white">
+            <DialogHeader>
+              <DialogTitle className="font-display text-gray-900">
+                Delete Product
+              </DialogTitle>
+              <DialogDescription className="text-gray-600">
+                Are you sure you want to delete "{deleteConfirm?.name}"? This
+                action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                data-ocid="admin.delete_button.cancel_button"
+                variant="outline"
+                className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                onClick={() => setDeleteConfirm(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                data-ocid="admin.delete_button.confirm_button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={deleteProduct.isPending}
+              >
+                {deleteProduct.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
                 )}
-              </CardHeader>
-              <CardContent>
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    try {
-                      await setUpiId.mutateAsync(upiIdInput);
-                      toast.success("UPI ID saved!");
-                      setUpiIdInput("");
-                    } catch {
-                      toast.error("Failed to save UPI ID");
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-1.5">
-                    <Label htmlFor="upi-id-input">Your UPI ID</Label>
-                    <Input
-                      id="upi-id-input"
-                      data-ocid="admin.upi_id.input"
-                      placeholder="yourname@upi"
-                      value={upiIdInput}
-                      onChange={(e) => setUpiIdInput(e.target.value)}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Customers will see this ID to send UPI payments.
-                    </p>
-                  </div>
-                  <Button
-                    data-ocid="admin.upi_id.save_button"
-                    type="submit"
-                    className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
-                    disabled={setUpiId.isPending}
-                  >
-                    {setUpiId.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save UPI ID"
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            {/* Payment Mode Card */}
-            <Card className="max-w-lg border-border/50 bg-card">
-              <CardHeader>
-                <CardTitle className="font-display text-lg">
-                  Payment Mode
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-start gap-3">
-                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-2">
-                    <CreditCard className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm">Stripe</p>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      Payments are processed securely via Stripe. Configure your
-                      Stripe key below to enable checkout.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Stripe Configuration Card */}
-            <Card className="max-w-lg border-border/50 bg-card">
-              <CardHeader>
-                <CardTitle className="font-display text-lg">
-                  Stripe Configuration
-                </CardTitle>
-                {stripeConfigured !== undefined && (
-                  <Badge
-                    variant={stripeConfigured ? "default" : "secondary"}
-                    className={
-                      stripeConfigured
-                        ? "gold-gradient border-0 text-primary-foreground w-fit"
-                        : "w-fit"
-                    }
-                  >
-                    {stripeConfigured ? "✓ Configured" : "Not configured"}
-                  </Badge>
-                )}
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveStripe} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="stripe-key">Stripe Secret Key</Label>
-                    <Input
-                      id="stripe-key"
-                      type="password"
-                      placeholder="sk_live_... or sk_test_..."
-                      value={stripeKey}
-                      onChange={(e) => setStripeKey(e.target.value)}
-                      required
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Your Stripe secret key. Keep this confidential.
-                    </p>
-                  </div>
-                  <Button
-                    type="submit"
-                    className="gold-gradient border-0 text-primary-foreground hover:opacity-90"
-                    disabled={setStripeConfig.isPending}
-                  >
-                    {setStripeConfig.isPending ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Configuration"
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Delete Confirm Dialog */}
-      <Dialog
-        open={!!deleteConfirm}
-        onOpenChange={(v) => !v && setDeleteConfirm(null)}
-      >
-        <DialogContent className="border-border/50 bg-card">
-          <DialogHeader>
-            <DialogTitle className="font-display">Delete Product</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{deleteConfirm?.name}"? This
-              action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              data-ocid="admin.delete_button.cancel_button"
-              variant="outline"
-              onClick={() => setDeleteConfirm(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              data-ocid="admin.delete_button.confirm_button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteProduct.isPending}
-            >
-              {deleteProduct.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Delete"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </section>
   );
 }

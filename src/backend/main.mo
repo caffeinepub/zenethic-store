@@ -12,9 +12,9 @@ import MixinStorage "blob-storage/Mixin";
 import Stripe "stripe/stripe";
 import OutCall "http-outcalls/outcall";
 import Order "mo:core/Order";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   // Components
   include MixinStorage();

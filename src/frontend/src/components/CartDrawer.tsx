@@ -32,6 +32,11 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  type GuestOrder,
+  generateOrderId,
+  saveGuestOrder,
+} from "../hooks/useGuestOrders";
+import {
   useCart,
   useCreateCheckoutSession,
   useGetUpiId,
@@ -125,6 +130,25 @@ function CheckoutModal({
         customerName: form.name,
         customerPhone: form.phone,
       });
+      const guestOrderCod: GuestOrder = {
+        id: generateOrderId(),
+        customerName: form.name,
+        customerPhone: form.phone,
+        shippingAddress: form.address,
+        paymentMethod: "cod",
+        items: cartWithDetails
+          .filter((item) => item.product)
+          .map((item) => ({
+            productId: String(item.productId),
+            productName: item.product!.name,
+            quantity: Number(item.quantity),
+            priceAtPurchase: item.product!.price * Number(item.quantity),
+          })),
+        totalAmount: Math.round(subtotal * 100),
+        status: "pending",
+        createdAt: Date.now(),
+      };
+      saveGuestOrder(guestOrderCod);
       toast.success("Order placed successfully! Pay cash on delivery.");
       onClose();
     } catch {
@@ -152,6 +176,25 @@ function CheckoutModal({
         customerName: form.name,
         customerPhone: form.phone,
       });
+      const guestOrderUpi: GuestOrder = {
+        id: generateOrderId(),
+        customerName: form.name,
+        customerPhone: form.phone,
+        shippingAddress: form.address,
+        paymentMethod: "upi",
+        items: cartWithDetails
+          .filter((item) => item.product)
+          .map((item) => ({
+            productId: String(item.productId),
+            productName: item.product!.name,
+            quantity: Number(item.quantity),
+            priceAtPurchase: item.product!.price * Number(item.quantity),
+          })),
+        totalAmount: Math.round(subtotal * 100),
+        status: "pending",
+        createdAt: Date.now(),
+      };
+      saveGuestOrder(guestOrderUpi);
       setUpiOrderPlaced(true);
     } catch {
       toast.error("Failed to place order. Please try again.");
@@ -164,13 +207,13 @@ function CheckoutModal({
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         data-ocid="checkout.dialog"
-        className="border-border/50 bg-card sm:max-w-md"
+        className="border-gray-200 bg-white text-black sm:max-w-md"
       >
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">
+          <DialogTitle className="font-display text-xl text-black">
             Choose Payment Method
           </DialogTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-gray-700">
             Total:{" "}
             <span className="gold-text font-bold text-base">
               ₹{subtotal.toFixed(2)}
@@ -186,11 +229,11 @@ function CheckoutModal({
           }}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-3 border border-border/50 bg-muted/40">
+          <TabsList className="grid w-full grid-cols-3 border border-gray-200 bg-gray-100">
             <TabsTrigger
               data-ocid="checkout.stripe.tab"
               value="stripe"
-              className="flex items-center gap-1.5 text-xs"
+              className="flex items-center gap-1.5 text-xs text-black data-[state=active]:text-black"
             >
               <CreditCard className="h-3.5 w-3.5" />
               Stripe
@@ -198,7 +241,7 @@ function CheckoutModal({
             <TabsTrigger
               data-ocid="checkout.upi.tab"
               value="upi"
-              className="flex items-center gap-1.5 text-xs"
+              className="flex items-center gap-1.5 text-xs text-black data-[state=active]:text-black"
             >
               <Smartphone className="h-3.5 w-3.5" />
               UPI
@@ -206,7 +249,7 @@ function CheckoutModal({
             <TabsTrigger
               data-ocid="checkout.cod.tab"
               value="cod"
-              className="flex items-center gap-1.5 text-xs"
+              className="flex items-center gap-1.5 text-xs text-black data-[state=active]:text-black"
             >
               <Banknote className="h-3.5 w-3.5" />
               COD
@@ -215,19 +258,21 @@ function CheckoutModal({
 
           {/* Stripe Tab */}
           <TabsContent value="stripe" className="mt-4 space-y-4">
-            <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="rounded-md border border-primary/20 bg-primary/5 p-2">
                   <CreditCard className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm">Credit / Debit Card</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="font-semibold text-sm text-black">
+                    Credit / Debit Card
+                  </p>
+                  <p className="text-xs text-gray-600">
                     Secure payment via Stripe
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-gray-600">
                 You will be redirected to Stripe's secure checkout page.
               </p>
             </div>
@@ -251,33 +296,31 @@ function CheckoutModal({
           {/* UPI Tab */}
           <TabsContent value="upi" className="mt-4 space-y-3">
             {!upiId ? (
-              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
-                <Smartphone className="mx-auto mb-2 h-8 w-8 text-yellow-500/60" />
-                <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">
+              <div className="rounded-lg border border-yellow-500/30 bg-yellow-50 p-4 text-center">
+                <Smartphone className="mx-auto mb-2 h-8 w-8 text-yellow-500" />
+                <p className="text-sm font-medium text-yellow-700">
                   UPI payments are not set up yet.
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-gray-600">
                   Please use COD or ask the store owner to configure UPI.
                 </p>
               </div>
             ) : upiOrderPlaced ? (
               /* Payment confirmation view */
               <div className="space-y-4">
-                <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-center">
-                  <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-500" />
-                  <p className="font-semibold text-sm text-green-600 dark:text-green-400">
+                <div className="rounded-lg border border-green-300 bg-green-50 p-4 text-center">
+                  <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-600" />
+                  <p className="font-semibold text-sm text-green-700">
                     Order placed! Now complete your payment:
                   </p>
                 </div>
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Pay to UPI ID:
-                  </p>
+                <div className="rounded-lg border border-primary/30 bg-gray-50 p-4 space-y-2">
+                  <p className="text-xs text-gray-600">Pay to UPI ID:</p>
                   <p className="font-mono font-bold text-lg text-primary break-all">
                     {upiId}
                   </p>
-                  <div className="border-t border-border/50 pt-2">
-                    <p className="text-xs text-muted-foreground">Amount:</p>
+                  <div className="border-t border-gray-200 pt-2">
+                    <p className="text-xs text-gray-600">Amount:</p>
                     <p className="font-display text-2xl font-bold gold-text">
                       ₹{subtotal.toFixed(2)}
                     </p>
@@ -291,14 +334,14 @@ function CheckoutModal({
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Pay Now via UPI App
                 </Button>
-                <p className="text-xs text-center text-muted-foreground">
+                <p className="text-xs text-center text-gray-600">
                   After paying, your order will be confirmed once we verify the
                   payment.
                 </p>
                 <Button
                   data-ocid="checkout.upi.close_button"
                   variant="outline"
-                  className="w-full border-border/50"
+                  className="w-full border-gray-300 text-black"
                   onClick={onClose}
                 >
                   Done
@@ -307,20 +350,20 @@ function CheckoutModal({
             ) : (
               /* Order form view */
               <>
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-                  <p className="text-xs text-muted-foreground mb-1">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-700 mb-1">
                     Pay ₹{subtotal.toFixed(2)} to UPI ID:
                   </p>
                   <p className="font-mono font-bold text-sm text-primary">
                     {upiId}
                   </p>
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-2 text-xs text-gray-600">
                     Fill your details below, then we'll show you how to pay.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <div>
-                    <Label htmlFor="upi-name" className="text-xs">
+                    <Label htmlFor="upi-name" className="text-xs text-black">
                       Full Name
                     </Label>
                     <Input
@@ -331,10 +374,11 @@ function CheckoutModal({
                       onChange={(e) =>
                         setForm((f) => ({ ...f, name: e.target.value }))
                       }
+                      className="text-black placeholder:text-gray-400 bg-white border-gray-300"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="upi-phone" className="text-xs">
+                    <Label htmlFor="upi-phone" className="text-xs text-black">
                       Phone Number
                     </Label>
                     <Input
@@ -345,10 +389,11 @@ function CheckoutModal({
                       onChange={(e) =>
                         setForm((f) => ({ ...f, phone: e.target.value }))
                       }
+                      className="text-black placeholder:text-gray-400 bg-white border-gray-300"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="upi-address" className="text-xs">
+                    <Label htmlFor="upi-address" className="text-xs text-black">
                       Delivery Address
                     </Label>
                     <Textarea
@@ -360,6 +405,7 @@ function CheckoutModal({
                       onChange={(e) =>
                         setForm((f) => ({ ...f, address: e.target.value }))
                       }
+                      className="text-black placeholder:text-gray-400 bg-white border-gray-300"
                     />
                   </div>
                 </div>
@@ -384,19 +430,21 @@ function CheckoutModal({
 
           {/* COD Tab */}
           <TabsContent value="cod" className="mt-4 space-y-3">
-            <div className="rounded-lg border border-border/50 bg-muted/20 p-3">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
               <div className="flex items-center gap-2 mb-2">
                 <Banknote className="h-4 w-4 text-primary" />
-                <p className="font-semibold text-sm">Cash on Delivery</p>
+                <p className="font-semibold text-sm text-black">
+                  Cash on Delivery
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-gray-700">
                 Pay ₹{subtotal.toFixed(2)} in cash when your order is delivered.
                 No advance payment required.
               </p>
             </div>
             <div className="space-y-2">
               <div>
-                <Label htmlFor="cod-name" className="text-xs">
+                <Label htmlFor="cod-name" className="text-xs text-black">
                   Full Name
                 </Label>
                 <Input
@@ -407,10 +455,11 @@ function CheckoutModal({
                   onChange={(e) =>
                     setForm((f) => ({ ...f, name: e.target.value }))
                   }
+                  className="text-black placeholder:text-gray-400 bg-white border-gray-300"
                 />
               </div>
               <div>
-                <Label htmlFor="cod-phone" className="text-xs">
+                <Label htmlFor="cod-phone" className="text-xs text-black">
                   Phone Number
                 </Label>
                 <Input
@@ -421,10 +470,11 @@ function CheckoutModal({
                   onChange={(e) =>
                     setForm((f) => ({ ...f, phone: e.target.value }))
                   }
+                  className="text-black placeholder:text-gray-400 bg-white border-gray-300"
                 />
               </div>
               <div>
-                <Label htmlFor="cod-address" className="text-xs">
+                <Label htmlFor="cod-address" className="text-xs text-black">
                   Delivery Address
                 </Label>
                 <Textarea
@@ -436,6 +486,7 @@ function CheckoutModal({
                   onChange={(e) =>
                     setForm((f) => ({ ...f, address: e.target.value }))
                   }
+                  className="text-black placeholder:text-gray-400 bg-white border-gray-300"
                 />
               </div>
             </div>

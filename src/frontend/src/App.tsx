@@ -6,22 +6,25 @@ import { CartDrawer } from "./components/CartDrawer";
 import { Footer } from "./components/Footer";
 import { Header } from "./components/Header";
 import { HeroSection } from "./components/HeroSection";
+import { LandingPage } from "./components/LandingPage";
 import { OrderHistory } from "./components/OrderHistory";
 import { ProductGrid } from "./components/ProductGrid";
-import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import { useRestoreProducts } from "./hooks/useQueries";
 
 type Page = "shop" | "admin" | "orders";
 
 const ADMIN_PIN = "admin2727";
 
 export default function App() {
+  const [showLanding, setShowLanding] = useState(true);
   const [page, setPage] = useState<Page>("shop");
   const [cartOpen, setCartOpen] = useState(false);
   const [adminUnlocked, setAdminUnlocked] = useState(
     () => localStorage.getItem("adminPin") === ADMIN_PIN,
   );
-  const { identity } = useInternetIdentity();
-  const isLoggedIn = !!identity;
+
+  // Restore products from localStorage cache if backend is empty (e.g. after redeployment)
+  useRestoreProducts();
 
   // Handle payment redirect
   useEffect(() => {
@@ -49,6 +52,10 @@ export default function App() {
     setPage("shop");
   };
 
+  if (showLanding) {
+    return <LandingPage onStart={() => setShowLanding(false)} />;
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header
@@ -57,7 +64,6 @@ export default function App() {
         onShopClick={() => setPage("shop")}
         onOrdersClick={() => setPage("orders")}
         currentPage={page}
-        isLoggedIn={isLoggedIn}
         adminUnlocked={adminUnlocked}
         onAdminUnlock={handleAdminUnlock}
         onAdminLockout={handleAdminLockout}

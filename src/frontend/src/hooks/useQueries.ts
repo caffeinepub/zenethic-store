@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import type {
   CartItem,
   Order,
@@ -9,43 +10,268 @@ import type {
 } from "../backend.d";
 import { useActor } from "./useActor";
 
+const PRODUCTS_CACHE_KEY = "zenethic_products_v2";
+export const CART_CACHE_KEY = "zenethic_cart_v1";
+
+// --- localStorage as primary product store ---
+
+function serializeProduct(p: Product): Record<string, string | boolean> {
+  return {
+    ...p,
+    id: p.id.toString(),
+    price: p.price.toString(),
+    stockQuantity: p.stockQuantity.toString(),
+    createdAt: p.createdAt.toString(),
+  };
+}
+
+function deserializeProduct(p: Record<string, string | boolean>): Product {
+  return {
+    ...(p as unknown as Product),
+    id: BigInt(p.id as string),
+    price: BigInt(p.price as string),
+    stockQuantity: BigInt(p.stockQuantity as string),
+    createdAt: BigInt(p.createdAt as string),
+  };
+}
+
+export function loadProductsFromStorage(): Product[] {
+  try {
+    const raw = localStorage.getItem(PRODUCTS_CACHE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    return data.map(deserializeProduct);
+  } catch {
+    return [];
+  }
+}
+
+function saveProductsToStorage(products: Product[]) {
+  try {
+    localStorage.setItem(
+      PRODUCTS_CACHE_KEY,
+      JSON.stringify(products.map(serializeProduct)),
+    );
+  } catch (e) {
+    console.error("Failed to save products to storage:", e);
+    throw e; // Re-throw so callers can handle
+  }
+}
+
+function addProductToStorage(product: Product) {
+  const existing = loadProductsFromStorage();
+  // Assign a local ID if needed
+  const maxId = existing.reduce((m, p) => (p.id > m ? p.id : m), 0n);
+  const newProduct = {
+    ...product,
+    id: product.id > 0n ? product.id : maxId + 1n,
+  };
+  saveProductsToStorage([...existing, newProduct]);
+  return newProduct;
+}
+
+function updateProductInStorage(product: Product) {
+  const existing = loadProductsFromStorage();
+  saveProductsToStorage(
+    existing.map((p) => (p.id === product.id ? product : p)),
+  );
+}
+
+function removeProductFromStorage(productId: bigint) {
+  const existing = loadProductsFromStorage();
+  saveProductsToStorage(existing.filter((p) => p.id !== productId));
+}
+
+// --- Cart localStorage helpers ---
+
+type LocalCartItem = { productId: bigint; quantity: bigint };
+
+function serializeCartItem(item: LocalCartItem) {
+  return {
+    productId: item.productId.toString(),
+    quantity: item.quantity.toString(),
+  };
+}
+function deserializeCartItem(item: Record<string, string>): LocalCartItem {
+  return { productId: BigInt(item.productId), quantity: BigInt(item.quantity) };
+}
+export function loadCartFromStorage(): LocalCartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_CACHE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw).map(deserializeCartItem);
+  } catch {
+    return [];
+  }
+}
+function saveCartToStorage(items: LocalCartItem[]) {
+  try {
+    localStorage.setItem(
+      CART_CACHE_KEY,
+      JSON.stringify(items.map(serializeCartItem)),
+    );
+  } catch {}
+}
+
+// --- Hooks ---
+
+// Products: served from localStorage immediately, synced with backend in background
 export function useProducts() {
   const { actor, isFetching } = useActor();
+  const queryClient = useQueryClient();
+
+  // Background sync: when backend is ready, reconcile
+  useEffect(() => {
+    if (!actor || isFetching) return;
+    (async () => {
+      try {
+        const backendProducts = await actor.getProducts();
+        const localProducts = loadProductsFromStorage();
+
+        if (backendProducts.length >= localProducts.length) {
+          // Backend has at least as many — trust backend, update local
+          saveProductsToStorage(backendProducts);
+          queryClient.setQueryData(["products"], backendProducts);
+        } else if (localProducts.length > 0 && backendProducts.length === 0) {
+          // Backend lost data — push local products to backend
+          for (const product of localProducts) {
+            try {
+              await actor.createProduct({
+                ...product,
+                id: 0n,
+                createdAt: BigInt(Date.now()) * 1_000_000n,
+              });
+            } catch {}
+          }
+          // Fetch again after restore
+          const restored = await actor.getProducts();
+          if (restored.length > 0) {
+            saveProductsToStorage(restored);
+            queryClient.setQueryData(["products"], restored);
+          }
+        } else if (localProducts.length > backendProducts.length) {
+          // Local has more — push missing products to backend
+          const backendIds = new Set(
+            backendProducts.map((p) => p.id.toString()),
+          );
+          const missing = localProducts.filter(
+            (p) => !backendIds.has(p.id.toString()),
+          );
+          for (const product of missing) {
+            try {
+              await actor.createProduct({
+                ...product,
+                id: 0n,
+                createdAt: BigInt(Date.now()) * 1_000_000n,
+              });
+            } catch {}
+          }
+          const synced = await actor.getProducts();
+          if (synced.length > 0) {
+            saveProductsToStorage(synced);
+            queryClient.setQueryData(["products"], synced);
+          }
+        }
+        queryClient.invalidateQueries({ queryKey: ["categories"] });
+        queryClient.invalidateQueries({ queryKey: ["storeStats"] });
+      } catch (_e) {
+        console.error("Product sync failed:", _e);
+      }
+    })();
+  }, [actor, isFetching, queryClient]);
+
   return useQuery<Product[]>({
     queryKey: ["products"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getProducts();
-    },
-    enabled: !!actor && !isFetching,
+    queryFn: () => loadProductsFromStorage(),
+    // Always serve from localStorage — never wait for backend
+    staleTime: Number.POSITIVE_INFINITY,
   });
+}
+
+// Keep this for compatibility — does nothing now (sync is inside useProducts)
+export function useRestoreProducts() {
+  useProducts();
 }
 
 export function useCategories() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
+  const { data: products } = useProducts();
   return useQuery<string[]>({
     queryKey: ["categories"],
     queryFn: async () => {
-      if (!actor) return [];
-      return actor.getCategories();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useCart() {
-  const { actor, isFetching } = useActor();
-  return useQuery<CartItem[]>({
-    queryKey: ["cart"],
-    queryFn: async () => {
+      // Derive categories from local products for instant response
+      const local = products ?? loadProductsFromStorage();
+      if (local.length > 0) {
+        return [...new Set(local.map((p) => p.category).filter(Boolean))];
+      }
       if (!actor) return [];
       try {
-        return await actor.getCart();
+        return await actor.getCategories();
       } catch {
         return [];
       }
     },
-    enabled: !!actor && !isFetching,
+    enabled: true,
+  });
+}
+
+// Cart: fully localStorage-based — no backend calls needed for guest users
+export function useCart() {
+  return useQuery<CartItem[]>({
+    queryKey: ["cart"],
+    queryFn: () => {
+      const items = loadCartFromStorage();
+      // CartItem shape: productId bigint, quantity bigint
+      return items as unknown as CartItem[];
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+export function useAddToCart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      quantity,
+    }: { productId: bigint; quantity: bigint }) => {
+      const items = loadCartFromStorage();
+      const existing = items.find((i) => i.productId === productId);
+      if (existing) {
+        existing.quantity += quantity;
+        saveCartToStorage(items);
+      } else {
+        saveCartToStorage([...items, { productId, quantity }]);
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+  });
+}
+
+export function useUpdateCartQuantity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      productId,
+      quantity,
+    }: { productId: bigint; quantity: bigint }) => {
+      const items = loadCartFromStorage();
+      saveCartToStorage(
+        items.map((i) => (i.productId === productId ? { ...i, quantity } : i)),
+      );
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
+  });
+}
+
+export function useRemoveFromCart() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (productId: bigint) => {
+      const items = loadCartFromStorage();
+      saveCartToStorage(items.filter((i) => i.productId !== productId));
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
   });
 }
 
@@ -149,6 +375,12 @@ export function usePlaceOrderWithMethod() {
     }) => {
       if (!actor)
         throw new Error("Backend not ready. Please refresh the page.");
+      // Sync localStorage cart to backend before placing order
+      await actor.clearCart();
+      const cartItems = loadCartFromStorage();
+      await Promise.all(
+        cartItems.map((item) => actor.addToCart(item.productId, item.quantity)),
+      );
       return actor.placeOrderWithMethod(
         shippingAddress,
         paymentMethod,
@@ -157,54 +389,11 @@ export function usePlaceOrderWithMethod() {
       );
     },
     onSuccess: () => {
+      // Clear localStorage cart after successful order
+      localStorage.removeItem(CART_CACHE_KEY);
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["userOrders"] });
     },
-  });
-}
-
-export function useAddToCart() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      productId,
-      quantity,
-    }: { productId: bigint; quantity: bigint }) => {
-      if (!actor)
-        throw new Error("Backend not ready. Please refresh the page.");
-      return actor.addToCart(productId, quantity);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
-  });
-}
-
-export function useUpdateCartQuantity() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      productId,
-      quantity,
-    }: { productId: bigint; quantity: bigint }) => {
-      if (!actor)
-        throw new Error("Backend not ready. Please refresh the page.");
-      return actor.updateCartQuantity(productId, quantity);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
-  });
-}
-
-export function useRemoveFromCart() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (productId: bigint) => {
-      if (!actor)
-        throw new Error("Backend not ready. Please refresh the page.");
-      return actor.removeFromCart(productId);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["cart"] }),
   });
 }
 
@@ -213,11 +402,27 @@ export function useCreateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (product: Product) => {
-      if (!actor) {
-        console.error("Actor is null - cannot create product");
-        throw new Error("Backend not ready. Please refresh the page.");
+      try {
+        const saved = addProductToStorage(product);
+        queryClient.setQueryData(["products"], loadProductsFromStorage());
+        // Also try to sync to backend (non-blocking)
+        if (actor) {
+          actor
+            .createProduct({
+              ...product,
+              id: 0n,
+              createdAt: BigInt(Date.now()) * 1_000_000n,
+            })
+            .catch((e) =>
+              console.warn("Backend sync for new product failed:", e),
+            );
+        }
+        return saved;
+      } catch (_e) {
+        throw new Error(
+          "Failed to save product. If you uploaded a large image, try using an image URL instead.",
+        );
       }
-      return actor.createProduct(product);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -232,11 +437,16 @@ export function useUpdateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (product: Product) => {
-      if (!actor) {
-        console.error("Actor is null - cannot update product");
-        throw new Error("Backend not ready. Please refresh the page.");
+      // Update localStorage immediately
+      updateProductInStorage(product);
+      queryClient.setQueryData(["products"], loadProductsFromStorage());
+      // Sync to backend
+      if (actor) {
+        actor
+          .updateProduct(product)
+          .catch((e) => console.warn("Backend sync for update failed:", e));
       }
-      return actor.updateProduct(product);
+      return product;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -250,9 +460,15 @@ export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (productId: bigint) => {
-      if (!actor)
-        throw new Error("Backend not ready. Please refresh the page.");
-      return actor.deleteProduct(productId);
+      // Remove from localStorage immediately
+      removeProductFromStorage(productId);
+      queryClient.setQueryData(["products"], loadProductsFromStorage());
+      // Sync to backend
+      if (actor) {
+        actor
+          .deleteProduct(productId)
+          .catch((e) => console.warn("Backend sync for delete failed:", e));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
