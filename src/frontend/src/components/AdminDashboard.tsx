@@ -52,9 +52,14 @@ import {
   TrendingUp,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
+import {
+  loadGuestOrders,
+  updateGuestOrderStatus,
+} from "../hooks/useGuestOrders";
+import type { GuestOrder } from "../hooks/useGuestOrders";
 import {
   useAllOrders,
   useCreateProduct,
@@ -68,6 +73,7 @@ import {
   useUpdateOrderStatus,
   useUpdateProduct,
 } from "../hooks/useQueries";
+import { getExtraImages, setExtraImages } from "../utils/imageStorage";
 
 const EMPTY_FORM = {
   name: "",
@@ -130,6 +136,56 @@ const SAMPLE_PRODUCTS = [
 export function AdminDashboard() {
   const { data: products = [], isLoading: productsLoading } = useProducts();
   const { data: orders = [], isLoading: ordersLoading } = useAllOrders();
+
+  const [localGuestOrders, setLocalGuestOrders] = useState<GuestOrder[]>([]);
+  useEffect(() => {
+    setLocalGuestOrders(loadGuestOrders());
+  }, []);
+
+  type DisplayOrder = {
+    id: string;
+    customerName: string;
+    customerPhone: string;
+    shippingAddress: string;
+    paymentMethod: string;
+    totalAmount: number;
+    status: string;
+    createdAt: number;
+    items: {
+      productId: string;
+      productName: string;
+      quantity: number;
+      priceAtPurchase: number;
+    }[];
+    source: "backend" | "local";
+  };
+
+  const backendDisplayOrders: DisplayOrder[] = orders.map((o) => ({
+    id: String(o.id),
+    customerName: o.customerName ?? "",
+    customerPhone: o.customerPhone ?? "",
+    shippingAddress: o.shippingAddress ?? "",
+    paymentMethod: o.paymentMethod ?? "",
+    totalAmount: Number(o.totalAmount),
+    status: o.status,
+    createdAt: Number(o.createdAt) / 1_000_000,
+    items: o.items.map((item) => ({
+      productId: String(item.productId),
+      productName: "",
+      quantity: Number(item.quantity),
+      priceAtPurchase: Number(item.priceAtPurchase),
+    })),
+    source: "backend" as const,
+  }));
+
+  const backendIds = new Set(backendDisplayOrders.map((o) => o.id));
+  const localOnlyOrders: DisplayOrder[] = localGuestOrders
+    .filter((o) => !backendIds.has(o.id))
+    .map((o) => ({ ...o, source: "local" as const }));
+
+  const allOrders = [...backendDisplayOrders, ...localOnlyOrders].sort(
+    (a, b) => b.createdAt - a.createdAt,
+  );
   const { data: stats } = useStoreStats();
   const { data: stripeConfigured } = useIsStripeConfigured();
 
@@ -148,16 +204,13 @@ export function AdminDashboard() {
   const [stripeKey, setStripeKey] = useState("");
   const [upiIdInput, setUpiIdInput] = useState("");
   const [samplesOpen, setSamplesOpen] = useState(true);
-  const [imageUrlInput, setImageUrlInput] = useState("");
+
+  const [productImages, setProductImages] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const originalDataUrl = ev.target?.result as string;
+  const compressImage = (dataUrl: string): Promise<string> =>
+    new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
         const MAX = 600;
@@ -176,29 +229,42 @@ export function AdminDashboard() {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          setForm((f) => ({ ...f, imageUrl: originalDataUrl }));
+          resolve(dataUrl);
           return;
         }
         ctx.drawImage(img, 0, 0, width, height);
-        const compressed = canvas.toDataURL("image/jpeg", 0.7);
-        setForm((f) => ({ ...f, imageUrl: compressed }));
-        setImageUrlInput("");
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
       };
-      img.src = originalDataUrl;
-    };
-    reader.readAsDataURL(file);
-  };
+      img.src = dataUrl;
+    });
 
-  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setImageUrlInput(val);
-    setForm((f) => ({ ...f, imageUrl: val }));
-  };
-
-  const clearImage = () => {
-    setForm((f) => ({ ...f, imageUrl: "" }));
-    setImageUrlInput("");
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target?.result as string;
+        const compressed = await compressImage(dataUrl);
+        setProductImages((prev) => {
+          if (prev.length >= 4) return prev;
+          const next = [...prev, compressed].slice(0, 4);
+          setForm((f) => ({ ...f, imageUrl: next[0] }));
+          return next;
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+    // reset so same file can be re-selected
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImage = (idx: number) => {
+    setProductImages((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      setForm((f) => ({ ...f, imageUrl: next[0] ?? "" }));
+      return next;
+    });
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -245,10 +311,11 @@ export function AdminDashboard() {
           stockQuantity: BigInt(stockNum),
           isActive: form.isActive,
         });
+        setExtraImages(editingProduct.id, productImages.slice(1));
         toast.success("Product updated");
         setEditingProduct(null);
       } else {
-        await createProduct.mutateAsync({
+        const newProduct = await createProduct.mutateAsync({
           id: 0n,
           name: form.name,
           description: form.description,
@@ -259,10 +326,13 @@ export function AdminDashboard() {
           isActive: form.isActive,
           createdAt: now,
         });
+        if (productImages.length > 1 && newProduct?.id !== undefined) {
+          setExtraImages(newProduct.id, productImages.slice(1));
+        }
         toast.success("Product created successfully!");
       }
       setForm(EMPTY_FORM);
-      setImageUrlInput("");
+      setProductImages([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error) {
       console.error("Product save error:", error);
@@ -284,8 +354,9 @@ export function AdminDashboard() {
 
   const startEdit = (product: Product) => {
     setEditingProduct(product);
-    const isDataUrl = product.imageUrl.startsWith("data:");
-    setImageUrlInput(isDataUrl ? "" : product.imageUrl);
+    const extras = getExtraImages(product.id);
+    const allImgs = [product.imageUrl, ...extras].filter(Boolean);
+    setProductImages(allImgs);
     setForm({
       name: product.name,
       description: product.description,
@@ -325,7 +396,7 @@ export function AdminDashboard() {
 
   const applySample = (sample: (typeof SAMPLE_PRODUCTS)[0]) => {
     setEditingProduct(null);
-    setImageUrlInput(sample.imageUrl);
+    setProductImages([sample.imageUrl]);
     setForm({ ...sample, isActive: true });
     document
       .getElementById("product-form-card")
@@ -580,88 +651,79 @@ export function AdminDashboard() {
                       {/* Image Picker */}
                       <div className="space-y-2">
                         <Label className="text-gray-800 font-medium">
-                          Product Image
+                          Product Images{" "}
+                          <span className="text-xs text-gray-400 font-normal">
+                            (up to 4)
+                          </span>
                         </Label>
 
-                        {/* Hidden file input */}
+                        {/* Hidden file input - multiple */}
                         <input
                           ref={fileInputRef}
                           type="file"
                           accept="image/*"
+                          multiple
                           className="hidden"
                           onChange={handleFileSelect}
                         />
 
-                        {/* Upload from gallery button */}
-                        <button
-                          type="button"
-                          data-ocid="admin.product_form.upload_button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-5 text-center transition-colors hover:border-gray-400 hover:bg-gray-100"
-                        >
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white">
-                            <ImagePlus className="h-5 w-5 text-gray-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">
-                              Upload from Gallery / Album
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Tap to pick a photo from your device
-                            </p>
-                          </div>
-                        </button>
+                        {/* Upload button */}
+                        {productImages.length < 4 && (
+                          <button
+                            type="button"
+                            data-ocid="admin.product_form.upload_button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-4 text-center transition-colors hover:border-gray-400 hover:bg-gray-100"
+                          >
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white">
+                              <ImagePlus className="h-5 w-5 text-gray-500" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">
+                                Upload from Gallery / Album
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Select up to {4 - productImages.length} more
+                                photo
+                                {4 - productImages.length !== 1 ? "s" : ""}
+                              </p>
+                            </div>
+                          </button>
+                        )}
 
-                        {/* OR divider */}
-                        <div className="relative flex items-center gap-3 py-1">
-                          <div className="h-px flex-1 bg-gray-200" />
-                          <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                            OR
-                          </span>
-                          <div className="h-px flex-1 bg-gray-200" />
-                        </div>
-
-                        {/* URL input */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <ImageIcon className="h-3.5 w-3.5 text-gray-400" />
-                            <span className="text-xs text-gray-500">
-                              Or paste image URL
-                            </span>
-                          </div>
-                          <Input
-                            id="pimg"
-                            data-ocid="admin.product_form.image_url_input"
-                            value={imageUrlInput}
-                            onChange={handleImageUrlChange}
-                            placeholder="https://example.com/image.jpg"
-                            className="border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:border-gray-500"
-                          />
-                        </div>
-
-                        {/* Preview */}
-                        {form.imageUrl && (
-                          <div className="relative mt-1 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
-                            <img
-                              src={form.imageUrl}
-                              alt="Product preview"
-                              className="h-36 w-full object-contain p-2"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display =
-                                  "none";
-                              }}
-                            />
-                            <button
-                              type="button"
-                              onClick={clearImage}
-                              className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200 transition-colors hover:bg-red-50 hover:text-red-600"
-                              title="Remove image"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                            <p className="pb-1 text-center text-xs text-gray-500">
-                              Preview
-                            </p>
+                        {/* Image thumbnails grid */}
+                        {productImages.length > 0 && (
+                          <div className="grid grid-cols-4 gap-2">
+                            {productImages.map((img, idx) => (
+                              <div
+                                // biome-ignore lint/suspicious/noArrayIndexKey: thumbnail grid uses index intentionally
+                                key={idx}
+                                className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 bg-gray-50"
+                              >
+                                <img
+                                  src={img}
+                                  alt={`Product view ${idx + 1}`}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    (
+                                      e.target as HTMLImageElement
+                                    ).style.display = "none";
+                                  }}
+                                />
+                                {idx === 0 && (
+                                  <span className="absolute bottom-0 left-0 right-0 bg-black/50 py-0.5 text-center text-[9px] font-bold uppercase tracking-wider text-white">
+                                    Main
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(idx)}
+                                  className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/90 shadow transition-colors hover:bg-red-50 hover:text-red-600"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -709,7 +771,6 @@ export function AdminDashboard() {
                             onClick={() => {
                               setEditingProduct(null);
                               setForm(EMPTY_FORM);
-                              setImageUrlInput("");
                             }}
                           >
                             Cancel
@@ -733,7 +794,6 @@ export function AdminDashboard() {
                       onClick={() => {
                         setEditingProduct(null);
                         setForm(EMPTY_FORM);
-                        setImageUrlInput("");
                       }}
                     >
                       <Plus className="mr-1 h-3.5 w-3.5" /> Add New
@@ -846,7 +906,7 @@ export function AdminDashboard() {
             <Card className="border-gray-200 bg-white shadow-sm">
               <CardHeader className="border-b border-gray-100">
                 <CardTitle className="font-display text-lg text-gray-900">
-                  All Orders ({orders.length})
+                  All Orders ({allOrders.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -854,7 +914,7 @@ export function AdminDashboard() {
                   <div className="py-12 text-center text-sm text-gray-500">
                     Loading...
                   </div>
-                ) : orders.length === 0 ? (
+                ) : allOrders.length === 0 ? (
                   <div className="py-12 text-center text-sm text-gray-500">
                     No orders yet
                   </div>
@@ -886,14 +946,14 @@ export function AdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {orders.map((order, i) => (
+                      {allOrders.map((order, i) => (
                         <TableRow
-                          key={String(order.id)}
+                          key={order.id}
                           data-ocid={`admin.order.row.${i + 1}`}
                           className="border-gray-100 hover:bg-gray-50"
                         >
                           <TableCell className="font-mono text-sm text-gray-800">
-                            #{String(order.id).padStart(6, "0")}
+                            #{order.id.padStart(6, "0")}
                           </TableCell>
                           <TableCell className="text-sm">
                             {order.customerName ? (
@@ -910,15 +970,13 @@ export function AdminDashboard() {
                             )}
                           </TableCell>
                           <TableCell className="text-sm text-gray-800">
-                            {new Date(
-                              Number(order.createdAt) / 1_000_000,
-                            ).toLocaleDateString()}
+                            {new Date(order.createdAt).toLocaleDateString()}
                           </TableCell>
                           <TableCell className="text-sm text-gray-800">
                             {order.items.length}
                           </TableCell>
                           <TableCell className="text-sm font-semibold text-gray-900">
-                            ₹{(Number(order.totalAmount) / 100).toFixed(2)}
+                            ₹{(order.totalAmount / 100).toFixed(2)}
                           </TableCell>
                           <TableCell>
                             {order.paymentMethod ? (
@@ -941,12 +999,17 @@ export function AdminDashboard() {
                           <TableCell>
                             <Select
                               value={order.status}
-                              onValueChange={(status) =>
-                                updateOrderStatus.mutate({
-                                  orderId: order.id,
-                                  status,
-                                })
-                              }
+                              onValueChange={(status) => {
+                                if (order.source === "local") {
+                                  updateGuestOrderStatus(order.id, status);
+                                  setLocalGuestOrders(loadGuestOrders());
+                                } else {
+                                  updateOrderStatus.mutate({
+                                    orderId: BigInt(order.id),
+                                    status,
+                                  });
+                                }
+                              }}
                             >
                               <SelectTrigger className="h-7 w-32 text-xs border-gray-300 bg-white text-gray-800">
                                 <SelectValue />
@@ -999,7 +1062,7 @@ export function AdminDashboard() {
             <Card className="border-gray-200 bg-white shadow-sm">
               <CardHeader className="border-b border-gray-100">
                 <CardTitle className="font-display text-lg text-gray-900">
-                  Customer Details ({orders.length})
+                  Customer Details ({allOrders.length})
                 </CardTitle>
                 <p className="text-sm text-gray-500">
                   All customer contact info and addresses for order fulfillment
@@ -1010,7 +1073,7 @@ export function AdminDashboard() {
                   <div className="py-12 text-center text-sm text-gray-500">
                     Loading...
                   </div>
-                ) : orders.length === 0 ? (
+                ) : allOrders.length === 0 ? (
                   <div
                     data-ocid="admin.customers_empty_state"
                     className="py-12 text-center text-sm text-gray-500"
@@ -1049,79 +1112,71 @@ export function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {[...orders]
-                          .sort(
-                            (a, b) => Number(b.createdAt) - Number(a.createdAt),
-                          )
-                          .map((order, i) => (
-                            <TableRow
-                              key={String(order.id)}
-                              data-ocid={`admin.customers.item.${i + 1}`}
-                              className="border-gray-100 hover:bg-gray-50"
-                            >
-                              <TableCell className="font-semibold text-sm text-gray-900">
-                                {order.customerName || "—"}
-                              </TableCell>
-                              <TableCell className="text-sm text-gray-800">
-                                {order.customerPhone || "—"}
-                              </TableCell>
-                              <TableCell className="text-sm text-gray-800 max-w-[200px]">
-                                <div
-                                  className="truncate"
-                                  title={order.shippingAddress}
-                                >
-                                  {order.shippingAddress || "—"}
-                                </div>
-                              </TableCell>
-                              <TableCell className="font-mono text-sm text-gray-800">
-                                #{String(order.id).padStart(6, "0")}
-                              </TableCell>
-                              <TableCell className="text-sm whitespace-nowrap text-gray-800">
-                                {new Date(
-                                  Number(order.createdAt) / 1_000_000,
-                                ).toLocaleDateString()}
-                              </TableCell>
-                              <TableCell className="text-sm font-semibold text-gray-900">
-                                ₹{(Number(order.totalAmount) / 100).toFixed(2)}
-                              </TableCell>
-                              <TableCell>
-                                {order.paymentMethod ? (
-                                  <Badge
-                                    variant="secondary"
-                                    className={
-                                      order.paymentMethod === "cod"
-                                        ? "bg-amber-100 text-amber-800"
-                                        : order.paymentMethod === "upi"
-                                          ? "bg-purple-100 text-purple-800"
-                                          : "gold-gradient border-0 text-primary-foreground"
-                                    }
-                                  >
-                                    {order.paymentMethod.toUpperCase()}
-                                  </Badge>
-                                ) : (
-                                  <span className="text-xs text-gray-400">
-                                    —
-                                  </span>
-                                )}
-                              </TableCell>
-                              <TableCell>
+                        {allOrders.map((order, i) => (
+                          <TableRow
+                            key={order.id}
+                            data-ocid={`admin.customers.item.${i + 1}`}
+                            className="border-gray-100 hover:bg-gray-50"
+                          >
+                            <TableCell className="font-semibold text-sm text-gray-900">
+                              {order.customerName || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-800">
+                              {order.customerPhone || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-gray-800 max-w-[200px]">
+                              <div
+                                className="truncate"
+                                title={order.shippingAddress}
+                              >
+                                {order.shippingAddress || "—"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm text-gray-800">
+                              #{order.id.padStart(6, "0")}
+                            </TableCell>
+                            <TableCell className="text-sm whitespace-nowrap text-gray-800">
+                              {new Date(order.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-sm font-semibold text-gray-900">
+                              ₹{(order.totalAmount / 100).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              {order.paymentMethod ? (
                                 <Badge
                                   variant="secondary"
                                   className={
-                                    order.status === "delivered"
-                                      ? "bg-green-100 text-green-800"
-                                      : order.status === "cancelled"
-                                        ? "bg-red-100 text-red-800"
-                                        : order.status === "processing"
-                                          ? "bg-blue-100 text-blue-800"
-                                          : "bg-yellow-100 text-yellow-800"
+                                    order.paymentMethod === "cod"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : order.paymentMethod === "upi"
+                                        ? "bg-purple-100 text-purple-800"
+                                        : "gold-gradient border-0 text-primary-foreground"
                                   }
                                 >
-                                  {order.status}
+                                  {order.paymentMethod.toUpperCase()}
                                 </Badge>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                              ) : (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  order.status === "delivered"
+                                    ? "bg-green-100 text-green-800"
+                                    : order.status === "cancelled"
+                                      ? "bg-red-100 text-red-800"
+                                      : order.status === "processing"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                }
+                              >
+                                {order.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
                       </TableBody>
                     </Table>
                   </div>
@@ -1378,8 +1433,6 @@ export function AdminDashboard() {
             </div>
           </TabsContent>
         </Tabs>
-
-        {/* Delete Confirm Dialog */}
         <Dialog
           open={!!deleteConfirm}
           onOpenChange={(v) => !v && setDeleteConfirm(null)}

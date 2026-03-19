@@ -54,13 +54,12 @@ function saveProductsToStorage(products: Product[]) {
     );
   } catch (e) {
     console.error("Failed to save products to storage:", e);
-    throw e; // Re-throw so callers can handle
+    throw e;
   }
 }
 
 function addProductToStorage(product: Product) {
   const existing = loadProductsFromStorage();
-  // Assign a local ID if needed
   const maxId = existing.reduce((m, p) => (p.id > m ? p.id : m), 0n);
   const newProduct = {
     ...product,
@@ -115,12 +114,13 @@ function saveCartToStorage(items: LocalCartItem[]) {
 
 // --- Hooks ---
 
-// Products: served from localStorage immediately, synced with backend in background
+// Products: served from localStorage immediately; if localStorage is empty,
+// fetch from backend so other phones always see the store.
 export function useProducts() {
   const { actor, isFetching } = useActor();
   const queryClient = useQueryClient();
 
-  // Background sync: when backend is ready, reconcile
+  // Background sync: reconcile localStorage with backend
   useEffect(() => {
     if (!actor || isFetching) return;
     (async () => {
@@ -143,7 +143,6 @@ export function useProducts() {
               });
             } catch {}
           }
-          // Fetch again after restore
           const restored = await actor.getProducts();
           if (restored.length > 0) {
             saveProductsToStorage(restored);
@@ -182,13 +181,30 @@ export function useProducts() {
 
   return useQuery<Product[]>({
     queryKey: ["products"],
-    queryFn: () => loadProductsFromStorage(),
-    // Always serve from localStorage — never wait for backend
+    queryFn: async () => {
+      // Serve from localStorage immediately if available
+      const local = loadProductsFromStorage();
+      if (local.length > 0) return local;
+      // If localStorage is empty (e.g. customer on another phone), fetch from backend
+      if (actor) {
+        try {
+          const backendProducts = await actor.getProducts();
+          if (backendProducts.length > 0) {
+            // Cache locally for this session
+            saveProductsToStorage(backendProducts);
+            return backendProducts;
+          }
+        } catch {
+          // backend not ready yet, return empty
+        }
+      }
+      return [];
+    },
     staleTime: Number.POSITIVE_INFINITY,
   });
 }
 
-// Keep this for compatibility — does nothing now (sync is inside useProducts)
+// Keep this for compatibility
 export function useRestoreProducts() {
   useProducts();
 }
@@ -199,7 +215,6 @@ export function useCategories() {
   return useQuery<string[]>({
     queryKey: ["categories"],
     queryFn: async () => {
-      // Derive categories from local products for instant response
       const local = products ?? loadProductsFromStorage();
       if (local.length > 0) {
         return [...new Set(local.map((p) => p.category).filter(Boolean))];
@@ -215,13 +230,12 @@ export function useCategories() {
   });
 }
 
-// Cart: fully localStorage-based — no backend calls needed for guest users
+// Cart: fully localStorage-based
 export function useCart() {
   return useQuery<CartItem[]>({
     queryKey: ["cart"],
     queryFn: () => {
       const items = loadCartFromStorage();
-      // CartItem shape: productId bigint, quantity bigint
       return items as unknown as CartItem[];
     },
     staleTime: Number.POSITIVE_INFINITY,
@@ -373,9 +387,10 @@ export function usePlaceOrderWithMethod() {
       customerName: string;
       customerPhone: string;
     }) => {
-      if (!actor)
-        throw new Error("Backend not ready. Please refresh the page.");
-      // Sync localStorage cart to backend before placing order
+      if (!actor) {
+        console.warn("Backend not ready, skipping order sync");
+        return;
+      }
       await actor.clearCart();
       const cartItems = loadCartFromStorage();
       await Promise.all(
@@ -389,7 +404,6 @@ export function usePlaceOrderWithMethod() {
       );
     },
     onSuccess: () => {
-      // Clear localStorage cart after successful order
       localStorage.removeItem(CART_CACHE_KEY);
       queryClient.invalidateQueries({ queryKey: ["cart"] });
       queryClient.invalidateQueries({ queryKey: ["userOrders"] });
@@ -405,7 +419,6 @@ export function useCreateProduct() {
       try {
         const saved = addProductToStorage(product);
         queryClient.setQueryData(["products"], loadProductsFromStorage());
-        // Also try to sync to backend (non-blocking)
         if (actor) {
           actor
             .createProduct({
@@ -437,10 +450,8 @@ export function useUpdateProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (product: Product) => {
-      // Update localStorage immediately
       updateProductInStorage(product);
       queryClient.setQueryData(["products"], loadProductsFromStorage());
-      // Sync to backend
       if (actor) {
         actor
           .updateProduct(product)
@@ -460,10 +471,8 @@ export function useDeleteProduct() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (productId: bigint) => {
-      // Remove from localStorage immediately
       removeProductFromStorage(productId);
       queryClient.setQueryData(["products"], loadProductsFromStorage());
-      // Sync to backend
       if (actor) {
         actor
           .deleteProduct(productId)

@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import {
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Minus,
   Package,
   Plus,
@@ -17,10 +19,11 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
 import { useAddToCart } from "../hooks/useQueries";
+import { getExtraImages } from "../utils/imageStorage";
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -34,6 +37,30 @@ export function ProductDetailModal({
   onClose,
 }: ProductDetailModalProps) {
   const [qty, setQty] = useState(1);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const touchStartX = useRef(0);
+
+  const allImages = product
+    ? [product.imageUrl, ...getExtraImages(product.id)].filter(Boolean)
+    : [];
+
+  // Reset index when product changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset on product id change
+  useEffect(() => {
+    setCurrentIdx(0);
+  }, [product?.id]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      setCurrentIdx((i) =>
+        diff > 0 ? Math.min(i + 1, allImages.length - 1) : Math.max(i - 1, 0),
+      );
+    }
+  };
   const addToCart = useAddToCart();
 
   if (!product) return null;
@@ -92,19 +119,70 @@ export function ProductDetailModal({
             <div
               className="relative aspect-[4/5] overflow-hidden md:rounded-l-lg"
               style={{ backgroundColor: "oklch(12% 0.008 280)" }}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
               <img
                 src={
-                  product.imageUrl ||
+                  allImages[currentIdx] ||
                   "/assets/generated/product-handbag.dim_600x600.jpg"
                 }
                 alt={product.name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover transition-opacity duration-200"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
                     "/assets/generated/product-handbag.dim_600x600.jpg";
                 }}
               />
+
+              {/* Left arrow */}
+              {currentIdx > 0 && (
+                <button
+                  type="button"
+                  data-ocid="product.modal.prev_image"
+                  onClick={() => setCurrentIdx((i) => Math.max(i - 1, 0))}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              )}
+
+              {/* Right arrow */}
+              {currentIdx < allImages.length - 1 && (
+                <button
+                  type="button"
+                  data-ocid="product.modal.next_image"
+                  onClick={() =>
+                    setCurrentIdx((i) => Math.min(i + 1, allImages.length - 1))
+                  }
+                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              )}
+
+              {/* Dot indicators */}
+              {allImages.length > 1 && (
+                <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
+                  {allImages.map((_, idx) => (
+                    <button
+                      // biome-ignore lint/suspicious/noArrayIndexKey: image dots use index intentionally
+                      key={idx}
+                      type="button"
+                      data-ocid={`product.modal.dot.${idx + 1}`}
+                      onClick={() => setCurrentIdx(idx)}
+                      className="h-1.5 rounded-full transition-all duration-200"
+                      style={{
+                        width: idx === currentIdx ? "20px" : "6px",
+                        backgroundColor:
+                          idx === currentIdx
+                            ? "oklch(65% 0.22 15)"
+                            : "oklch(80% 0.005 280 / 0.6)",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
 
               {/* Category badge */}
               <Badge
