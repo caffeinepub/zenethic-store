@@ -1,21 +1,21 @@
 # Zenethic Store
 
 ## Current State
-The backend uses `Map.empty<>()` with plain `let` bindings — these are NOT stable, so all products, orders, and cart data are wiped on every deployment. Cancelled orders placed yesterday are no longer visible.
+ProductCard shows image, name, price, description, qty stepper and Add to Cart button in a grid card. No product detail view exists.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Stable storage for all data (products, orders, carts, counters, UPI ID, Stripe config) so data persists permanently across deployments.
+- ProductDetailModal component: opens when user clicks on a product image or card
+- Modal shows: large product image, name, category badge, price in ₹, full description, qty stepper, Add to Cart button -- Amazon/Flipkart style
 
 ### Modify
-- Backend: Change all `let` map bindings and counter/config vars to use stable storage so data survives upgrades.
-- Cancelled orders must remain permanently visible in My Orders with "Cancelled" status.
+- ProductCard: clicking the image (or product name) opens the detail modal instead of nothing
 
 ### Remove
-- Nothing removed.
+- Nothing removed
 
 ## Implementation Plan
-1. Regenerate Motoko backend with stable vars for products, orders, carts, nextProductId, nextOrderId, upiId, stripeConfiguration.
-2. Ensure cancelOrder sets status to "cancelled" permanently (already implemented, just needs stable backing).
-3. Frontend already shows cancelled orders — no frontend changes needed.
+1. Create ProductDetailModal.tsx with a Dialog showing full product detail
+2. In ProductCard, add onClick on image area to open the modal
+3. Pass selected product state up or manage locally in ProductCard
