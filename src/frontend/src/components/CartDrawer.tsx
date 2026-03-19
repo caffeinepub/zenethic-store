@@ -631,10 +631,10 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                         )}
 
                         <div className="mt-auto flex items-center justify-between">
-                          <div className="flex items-center rounded-md border border-border">
+                          <div className="flex items-center rounded-md border border-red-500/50">
                             <button
                               type="button"
-                              className="flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground"
+                              className="flex h-6 w-6 items-center justify-center text-white hover:text-red-400"
                               onClick={() => {
                                 const newQty = Number(item.quantity) - 1;
                                 if (newQty < 1) {
@@ -649,12 +649,12 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                             >
                               <Minus className="h-3 w-3" />
                             </button>
-                            <span className="flex h-6 w-8 items-center justify-center text-xs font-medium">
+                            <span className="flex h-6 w-8 items-center justify-center text-xs font-medium text-white">
                               {String(item.quantity)}
                             </span>
                             <button
                               type="button"
-                              className="flex h-6 w-6 items-center justify-center text-muted-foreground hover:text-foreground"
+                              className="flex h-6 w-6 items-center justify-center text-white hover:text-red-400"
                               onClick={() =>
                                 updateQty.mutate({
                                   productId: item.productId,
@@ -666,7 +666,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                             </button>
                           </div>
                           {item.product && (
-                            <span className="gold-text text-sm font-bold">
+                            <span className="text-red-500 text-sm font-bold">
                               ₹
                               {(
                                 (Number(item.product.price) / 100) *
