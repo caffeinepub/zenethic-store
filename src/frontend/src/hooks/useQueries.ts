@@ -116,8 +116,10 @@ function saveCartToStorage(items: LocalCartItem[]) {
 
 // Products: served from localStorage immediately; if localStorage is empty,
 // fetch from backend so other phones always see the store.
+// Query key includes actor ready state so it re-runs when backend becomes available.
 export function useProducts() {
   const { actor, isFetching } = useActor();
+  const actorReady = !!actor && !isFetching;
   const queryClient = useQueryClient();
 
   // Background sync: reconcile localStorage with backend
@@ -128,7 +130,10 @@ export function useProducts() {
         const backendProducts = await actor.getProducts();
         const localProducts = loadProductsFromStorage();
 
-        if (backendProducts.length >= localProducts.length) {
+        if (
+          backendProducts.length >= localProducts.length &&
+          backendProducts.length > 0
+        ) {
           // Backend has at least as many — trust backend, update local
           saveProductsToStorage(backendProducts);
           queryClient.setQueryData(["products"], backendProducts);
@@ -146,8 +151,9 @@ export function useProducts() {
           const restored = await actor.getProducts();
           if (restored.length > 0) {
             saveProductsToStorage(restored);
-            queryClient.setQueryData(["products"], restored);
           }
+          // Update query with local products (synced or not)
+          queryClient.setQueryData(["products"], localProducts);
         } else if (localProducts.length > backendProducts.length) {
           // Local has more — push missing products to backend
           const backendIds = new Set(
@@ -165,22 +171,25 @@ export function useProducts() {
               });
             } catch {}
           }
-          const synced = await actor.getProducts();
-          if (synced.length > 0) {
-            saveProductsToStorage(synced);
-            queryClient.setQueryData(["products"], synced);
-          }
+          // Always show local products
+          queryClient.setQueryData(["products"], localProducts);
         }
         queryClient.invalidateQueries({ queryKey: ["categories"] });
         queryClient.invalidateQueries({ queryKey: ["storeStats"] });
       } catch (_e) {
         console.error("Product sync failed:", _e);
+        // Still show local products even if sync fails
+        const localProducts = loadProductsFromStorage();
+        if (localProducts.length > 0) {
+          queryClient.setQueryData(["products"], localProducts);
+        }
       }
     })();
   }, [actor, isFetching, queryClient]);
 
   return useQuery<Product[]>({
-    queryKey: ["products"],
+    // Include actorReady so query re-runs when backend becomes available
+    queryKey: ["products", actorReady],
     queryFn: async () => {
       // Serve from localStorage immediately if available
       const local = loadProductsFromStorage();
@@ -200,7 +209,7 @@ export function useProducts() {
       }
       return [];
     },
-    staleTime: Number.POSITIVE_INFINITY,
+    staleTime: 30_000, // 30 seconds - allows refresh to pick up new products
   });
 }
 
@@ -419,6 +428,7 @@ export function useCreateProduct() {
       try {
         const saved = addProductToStorage(product);
         queryClient.setQueryData(["products"], loadProductsFromStorage());
+        queryClient.setQueryData(["products", true], loadProductsFromStorage());
         if (actor) {
           actor
             .createProduct({
@@ -452,6 +462,7 @@ export function useUpdateProduct() {
     mutationFn: async (product: Product) => {
       updateProductInStorage(product);
       queryClient.setQueryData(["products"], loadProductsFromStorage());
+      queryClient.setQueryData(["products", true], loadProductsFromStorage());
       if (actor) {
         actor
           .updateProduct(product)
@@ -473,6 +484,7 @@ export function useDeleteProduct() {
     mutationFn: async (productId: bigint) => {
       removeProductFromStorage(productId);
       queryClient.setQueryData(["products"], loadProductsFromStorage());
+      queryClient.setQueryData(["products", true], loadProductsFromStorage());
       if (actor) {
         actor
           .deleteProduct(productId)

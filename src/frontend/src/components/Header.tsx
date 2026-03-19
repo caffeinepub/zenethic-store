@@ -298,7 +298,7 @@ export function Header({
                   className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-0 p-0 text-[10px] font-bold"
                   style={{
                     backgroundColor: "oklch(55% 0.23 15)",
-                    color: "oklch(98% 0.003 280)",
+                    color: "#ffffff",
                   }}
                 >
                   {cartCount}
@@ -540,7 +540,7 @@ export function Header({
             <Button
               data-ocid="admin.submit_button"
               className="crimson-gradient border-0"
-              style={{ color: "oklch(98% 0.003 280)" }}
+              style={{ color: "#ffffff" }}
               onClick={handlePinSubmit}
               disabled={!pin}
             >
@@ -618,7 +618,7 @@ export function Header({
             <Button
               data-ocid="login.submit_button"
               className="crimson-gradient border-0"
-              style={{ color: "oklch(98% 0.003 280)" }}
+              style={{ color: "#ffffff" }}
               onClick={handleLoginSubmit}
               disabled={!loginPhone.trim()}
             >

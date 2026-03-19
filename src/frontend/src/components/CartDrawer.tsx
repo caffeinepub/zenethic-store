@@ -611,7 +611,10 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
 
                       <div className="flex flex-1 flex-col">
                         <div className="flex items-start justify-between gap-2">
-                          <h4 className="text-sm font-medium leading-tight line-clamp-2">
+                          <h4
+                            className="text-sm font-medium leading-tight line-clamp-2"
+                            style={{ color: "#ffffff" }}
+                          >
                             {item.product?.name ?? "Unknown Product"}
                           </h4>
                           <button
@@ -649,7 +652,13 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                             >
                               <Minus className="h-3 w-3" />
                             </button>
-                            <span className="flex h-6 w-8 items-center justify-center text-xs font-medium text-white">
+                            <span
+                              className="flex h-6 w-8 items-center justify-center text-xs font-bold"
+                              style={{
+                                color: "#ffffff",
+                                textShadow: "0 0 4px rgba(0,0,0,0.8)",
+                              }}
+                            >
                               {String(item.quantity)}
                             </span>
                             <button

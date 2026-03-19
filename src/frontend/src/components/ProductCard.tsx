@@ -154,7 +154,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
 
         {/* Info */}
         <div className="flex flex-1 flex-col p-4">
-          <h3 className="mb-1 font-display text-sm font-semibold leading-tight line-clamp-1">
+          <h3 className="mb-1 font-display text-sm font-semibold leading-tight line-clamp-1 text-white">
             {product.name}
           </h3>
           <p className="mb-3 flex-1 text-xs text-muted-foreground line-clamp-2">
@@ -197,7 +197,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
                 >
                   <Minus className="h-3 w-3" />
                 </button>
-                <span className="flex h-7 w-7 items-center justify-center text-xs font-semibold">
+                <span className="flex h-7 w-7 items-center justify-center text-xs font-semibold text-white">
                   {qty}
                 </span>
                 <button
