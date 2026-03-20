@@ -9,9 +9,10 @@ import { HeroSection } from "./components/HeroSection";
 import { LandingPage } from "./components/LandingPage";
 import { OrderHistory } from "./components/OrderHistory";
 import { ProductGrid } from "./components/ProductGrid";
+import { ReturnPolicy } from "./components/ReturnPolicy";
 import { useRestoreProducts } from "./hooks/useQueries";
 
-type Page = "shop" | "admin" | "orders";
+type Page = "shop" | "admin" | "orders" | "policy";
 
 const ADMIN_PIN = "admin2727";
 
@@ -98,9 +99,10 @@ export default function App() {
           </div>
         )}
         {page === "orders" && <OrderHistory />}
+        {page === "policy" && <ReturnPolicy onBack={() => setPage("shop")} />}
       </main>
 
-      <Footer />
+      <Footer onPolicyClick={() => setPage("policy")} />
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
       <Toaster position="top-right" richColors />

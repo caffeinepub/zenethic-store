@@ -1,10 +1,17 @@
 import { Heart } from "lucide-react";
 
-function FooterLink({ label }: { label: string }) {
+function FooterLink({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick?: () => void;
+}) {
   return (
     <li>
       <button
         type="button"
+        onClick={onClick}
         className="text-sm text-muted-foreground transition-colors hover:text-foreground"
         onMouseEnter={(e) => {
           (e.target as HTMLElement).style.color = "oklch(65% 0.22 15)";
@@ -19,7 +26,11 @@ function FooterLink({ label }: { label: string }) {
   );
 }
 
-export function Footer() {
+interface FooterProps {
+  onPolicyClick?: () => void;
+}
+
+export function Footer({ onPolicyClick }: FooterProps) {
   const year = new Date().getFullYear();
   const utm = `https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`;
 
@@ -52,7 +63,7 @@ export function Footer() {
 
       <div className="relative container mx-auto px-4">
         {/* Top section */}
-        <div className="grid grid-cols-1 gap-10 py-14 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-10 py-14 md:grid-cols-4">
           {/* Brand column */}
           <div className="flex flex-col gap-5">
             <img
@@ -106,14 +117,26 @@ export function Footer() {
               Info
             </h4>
             <ul className="flex flex-col gap-2.5">
-              {[
-                "About Zenethic",
-                "Shipping Policy",
-                "Returns & Refunds",
-                "Contact Us",
-              ].map((link) => (
-                <FooterLink key={link} label={link} />
-              ))}
+              <FooterLink label="About Zenethic" />
+              <FooterLink label="Shipping Policy" />
+              <FooterLink label="Returns & Refunds" onClick={onPolicyClick} />
+              <FooterLink label="Contact Us" />
+            </ul>
+          </div>
+
+          {/* Contact column */}
+          <div className="flex flex-col gap-4">
+            <h4
+              className="text-xs font-bold uppercase tracking-[0.2em]"
+              style={{ color: "oklch(65% 0.22 15)" }}
+            >
+              Contact
+            </h4>
+            <ul className="flex flex-col gap-2.5">
+              <li className="text-sm text-muted-foreground">📞 9405923854</li>
+              <li className="text-sm text-muted-foreground">
+                💳 UPI: shreyashgaonkar85@okicici
+              </li>
             </ul>
           </div>
         </div>

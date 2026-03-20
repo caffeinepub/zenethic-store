@@ -40,6 +40,7 @@ import {
   Copy,
   CreditCard,
   DollarSign,
+  Download,
   Edit2,
   ImageIcon,
   ImagePlus,
@@ -50,6 +51,7 @@ import {
   Sparkles,
   Trash2,
   TrendingUp,
+  Upload,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -61,6 +63,7 @@ import {
 } from "../hooks/useGuestOrders";
 import type { GuestOrder } from "../hooks/useGuestOrders";
 import {
+  loadProductsFromStorage,
   useAllOrders,
   useCreateProduct,
   useDeleteProduct,
@@ -198,16 +201,24 @@ export function AdminDashboard() {
   const { data: upiId = "" } = useGetUpiId();
   const setUpiId = useSetUpiId();
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  useEffect(() => {
+    if (upiId === "") {
+      setUpiId.mutate("shreyashgaonkar85@okicici");
+    }
+  }, []); // run once
+
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Product | null>(null);
   const [stripeKey, setStripeKey] = useState("");
-  const [upiIdInput, setUpiIdInput] = useState("");
+  const [upiIdInput, setUpiIdInput] = useState("shreyashgaonkar85@okicici");
   const [samplesOpen, setSamplesOpen] = useState(true);
 
   const [productImages, setProductImages] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const compressImage = (dataUrl: string): Promise<string> =>
     new Promise((resolve) => {
@@ -394,6 +405,89 @@ export function AdminDashboard() {
     }
   };
 
+  const handleExportProducts = () => {
+    const products = loadProductsFromStorage();
+    if (products.length === 0) {
+      toast.error("No products to export.");
+      return;
+    }
+    const extraImages: Record<string, string[]> = {};
+    for (const p of products) {
+      const extras = getExtraImages(p.id);
+      if (extras.length > 0) extraImages[p.id.toString()] = extras;
+    }
+    const exportData = {
+      products: products.map((p) => ({
+        ...p,
+        id: p.id.toString(),
+        price: p.price.toString(),
+        stockQuantity: p.stockQuantity.toString(),
+        createdAt: p.createdAt.toString(),
+      })),
+      extraImages,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "zenethic-products.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${products.length} products successfully!`);
+  };
+
+  const handleImportProducts = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const data = JSON.parse(ev.target?.result as string);
+        const products = (data.products || []).map(
+          (p: Record<string, unknown>) => ({
+            ...p,
+            id: BigInt(p.id as string),
+            price: BigInt(p.price as string),
+            stockQuantity: BigInt(p.stockQuantity as string),
+            createdAt: BigInt(p.createdAt as string),
+          }),
+        );
+        localStorage.setItem(
+          "zenethic_products_v2",
+          JSON.stringify(
+            products.map(
+              (p: {
+                id: bigint;
+                price: bigint;
+                stockQuantity: bigint;
+                createdAt: bigint;
+              }) => ({
+                ...p,
+                id: p.id.toString(),
+                price: p.price.toString(),
+                stockQuantity: p.stockQuantity.toString(),
+                createdAt: p.createdAt.toString(),
+              }),
+            ),
+          ),
+        );
+        if (data.extraImages) {
+          for (const [idStr, imgs] of Object.entries(data.extraImages)) {
+            setExtraImages(BigInt(idStr), imgs as string[]);
+          }
+        }
+        toast.success(`Imported ${products.length} products! Refreshing...`);
+        setTimeout(() => window.location.reload(), 1000);
+      } catch {
+        toast.error("Invalid file. Please use a file exported from Zenethic.");
+      }
+    };
+    reader.readAsText(file);
+    if (importFileRef.current) importFileRef.current.value = "";
+  };
+
   const applySample = (sample: (typeof SAMPLE_PRODUCTS)[0]) => {
     setEditingProduct(null);
     setProductImages([sample.imageUrl]);
@@ -462,6 +556,35 @@ export function AdminDashboard() {
           {/* Products Tab */}
           <TabsContent value="products">
             <div className="space-y-6">
+              {/* Export / Import */}
+              <div className="flex gap-3 flex-wrap">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 border-green-300 text-green-700 hover:bg-green-50"
+                  onClick={handleExportProducts}
+                >
+                  <Download className="h-4 w-4" />
+                  Export Products (Backup)
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
+                  onClick={() => importFileRef.current?.click()}
+                >
+                  <Upload className="h-4 w-4" />
+                  Import Products (Restore)
+                </Button>
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={handleImportProducts}
+                />
+              </div>
+
               {/* Quick Add Sample Products */}
               <Collapsible open={samplesOpen} onOpenChange={setSamplesOpen}>
                 <div className="rounded-xl border border-amber-200 bg-amber-50">
