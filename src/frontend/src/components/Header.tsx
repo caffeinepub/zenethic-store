@@ -19,11 +19,13 @@ import {
 } from "@/components/ui/sheet";
 import {
   Crown,
+  Heart,
   LogIn,
   LogOut,
   Menu,
   Package,
   Phone,
+  Search,
   ShoppingCart,
   Store,
   User,
@@ -98,536 +100,451 @@ export function Header({
       setPinDialogOpen(false);
       setPin("");
       setPinError("");
-      toast.success("Admin access granted!");
     } else {
       setPinError("Incorrect PIN. Please try again.");
     }
   };
 
-  const handleAdminNavClick = () => {
-    if (adminUnlocked) {
-      onAdminClick();
-    } else {
-      setPinDialogOpen(true);
-    }
-  };
-
-  const handleMobileAdminClick = () => {
-    setMobileMenuOpen(false);
-    if (adminUnlocked) {
-      onAdminClick();
-    } else {
-      setPinDialogOpen(true);
-    }
-  };
-
   const handleLoginSubmit = () => {
-    const phone = loginPhone.trim();
-    if (!phone || phone.length < 7) {
-      setLoginError("Please enter a valid phone number.");
-      return;
+    if (loginPhone.replace(/\D/g, "").length >= 10) {
+      customerLogin(loginPhone);
+      setLoginDialogOpen(false);
+      setLoginPhone("");
+      setLoginError("");
+      toast.success("Logged in successfully!");
+    } else {
+      setLoginError("Please enter a valid 10-digit phone number.");
     }
-    customerLogin(phone);
-    setLoginDialogOpen(false);
-    setLoginPhone("");
-    setLoginError("");
-    toast.success(`Logged in as ${phone}`);
   };
 
-  const handleCustomerLogout = () => {
-    customerLogout();
-    toast.success("Logged out successfully.");
-  };
-
-  const shortPhone = customerPhone
-    ? customerPhone.length > 7
-      ? `${customerPhone.slice(0, 3)}···${customerPhone.slice(-3)}`
-      : customerPhone
-    : null;
+  const navLinks = [
+    { label: "Fragrance", category: "fragrance" },
+    { label: "Skincare", category: "skincare" },
+    { label: "Accessories", category: "accessories" },
+  ];
 
   return (
-    <>
-      <header
-        className="sticky top-0 z-50 backdrop-blur-xl"
-        style={{
-          backgroundColor: "oklch(8% 0.008 280 / 0.85)",
-          borderBottom: "1px solid oklch(55% 0.23 15 / 0.15)",
-        }}
-      >
+    <header className="sticky top-0 z-50 w-full">
+      {/* Announcement Bar */}
+      <div className="announcement-bar py-2 text-center text-xs font-semibold tracking-wide">
+        🎉 Mega Sale! Up to 50% Off &nbsp;|&nbsp; Free Shipping on Orders Over
+        ₹499
+      </div>
+
+      {/* Main Header */}
+      <div className="border-b border-border bg-white shadow-xs">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
+          {/* Logo */}
           <button
             type="button"
+            data-ocid="header.logo.link"
             onClick={onShopClick}
-            className="flex items-center gap-2 tracking-tight focus:outline-none"
+            className="flex items-center gap-2"
           >
-            <img
-              src="/assets/generated/zenethic-logo-transparent.dim_400x120.png"
-              alt="Zenethic"
-              className="h-8 w-auto object-contain"
-            />
+            <span
+              className="font-display text-2xl font-extrabold tracking-tight"
+              style={{ color: "oklch(55% 0.18 15)" }}
+            >
+              Zenethic
+            </span>
           </button>
 
           {/* Desktop Nav */}
-          <nav className="hidden items-center gap-8 md:flex">
-            {[
-              {
-                label: "Shop",
-                page: "shop",
-                onClick: onShopClick,
-                ocid: "nav.shop_link",
-              },
-              {
-                label: "My Orders",
-                page: "orders",
-                onClick: onOrdersClick,
-                ocid: "nav.orders_link",
-              },
-            ].map(({ label, page, onClick, ocid }) => (
-              <button
-                key={page}
-                type="button"
-                data-ocid={ocid}
-                onClick={onClick}
-                className="relative text-xs font-semibold uppercase tracking-[0.15em] transition-colors"
-                style={{
-                  color:
-                    currentPage === page
-                      ? "oklch(65% 0.22 15)"
-                      : "oklch(55% 0.015 280)",
-                }}
-              >
-                {label}
-                {currentPage === page && (
-                  <span
-                    className="absolute -bottom-1 left-0 right-0 h-px rounded-full"
-                    style={{ backgroundColor: "oklch(55% 0.23 15)" }}
-                  />
-                )}
-              </button>
-            ))}
-
+          <nav
+            className="hidden items-center gap-8 md:flex"
+            aria-label="Main navigation"
+          >
             <button
               type="button"
-              data-ocid="nav.admin_link"
-              onClick={handleAdminNavClick}
-              className="relative flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.15em] transition-colors"
-              style={{
-                color:
-                  currentPage === "admin"
-                    ? "oklch(65% 0.22 15)"
-                    : "oklch(55% 0.015 280)",
-              }}
+              data-ocid="nav.shop.link"
+              onClick={onShopClick}
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                currentPage === "shop" ? "text-primary" : "text-foreground"
+              }`}
             >
-              <Crown className="h-3.5 w-3.5" />
-              Admin
-              {!adminUnlocked && (
-                <span className="text-[10px] opacity-50">🔒</span>
-              )}
-              {currentPage === "admin" && (
+              Home
+            </button>
+            {navLinks.map((link) => (
+              <button
+                key={link.category}
+                type="button"
+                data-ocid={`nav.${link.category}.link`}
+                onClick={onShopClick}
+                className="text-sm font-medium text-foreground transition-colors hover:text-primary"
+              >
+                {link.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              data-ocid="nav.orders.link"
+              onClick={onOrdersClick}
+              className={`text-sm font-medium transition-colors hover:text-primary ${
+                currentPage === "orders" ? "text-primary" : "text-foreground"
+              }`}
+            >
+              Contact Us
+            </button>
+          </nav>
+
+          {/* Right Icons */}
+          <div className="flex items-center gap-2">
+            {/* Search icon (decorative) */}
+            <button
+              type="button"
+              className="hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:flex"
+              aria-label="Search"
+            >
+              <Search className="h-4 w-4" />
+            </button>
+
+            {/* Wishlist */}
+            <button
+              type="button"
+              className="hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:flex"
+              aria-label="Wishlist"
+            >
+              <Heart className="h-4 w-4" />
+            </button>
+
+            {/* Cart */}
+            <button
+              type="button"
+              data-ocid="header.cart.button"
+              onClick={onCartOpen}
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary"
+              aria-label="Cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
                 <span
-                  className="absolute -bottom-1 left-0 right-0 h-px rounded-full"
-                  style={{ backgroundColor: "oklch(55% 0.23 15)" }}
-                />
+                  className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                  style={{ backgroundColor: "oklch(55% 0.18 15)" }}
+                >
+                  {cartCount > 9 ? "9+" : cartCount}
+                </span>
               )}
             </button>
 
-            {adminUnlocked && (
+            {/* Login / Profile */}
+            {customerPhone ? (
               <button
                 type="button"
-                data-ocid="nav.admin_logout_button"
-                onClick={onAdminLockout}
-                className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
-                title="Exit Admin"
+                data-ocid="header.profile.button"
+                onClick={customerLogout}
+                className="hidden h-9 w-9 items-center justify-center rounded-full bg-secondary text-foreground transition-colors hover:bg-accent md:flex"
+                title={`Logged in: ${customerPhone}`}
               >
-                <LogOut className="h-3 w-3" />
-                Exit
+                <User className="h-4 w-4" />
               </button>
-            )}
-
-            {/* Customer Login/User button - Desktop */}
-            {customerPhone ? (
-              <div className="flex items-center gap-2">
-                <span
-                  className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium"
-                  style={{
-                    backgroundColor: "oklch(55% 0.23 15 / 0.12)",
-                    color: "oklch(65% 0.22 15)",
-                  }}
-                >
-                  <User className="h-3 w-3" />
-                  {shortPhone}
-                </span>
-                <button
-                  type="button"
-                  data-ocid="nav.customer_logout_button"
-                  onClick={handleCustomerLogout}
-                  className="flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-destructive"
-                  title="Logout"
-                >
-                  <LogOut className="h-3 w-3" />
-                </button>
-              </div>
             ) : (
               <button
                 type="button"
-                data-ocid="nav.login_button"
+                data-ocid="header.login.button"
                 onClick={() => setLoginDialogOpen(true)}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.15em] transition-colors"
-                style={{
-                  border: "1px solid oklch(55% 0.23 15 / 0.4)",
-                  color: "oklch(65% 0.22 15)",
-                }}
+                className="hidden h-9 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold text-foreground transition-colors hover:border-primary/60 hover:text-primary md:flex"
               >
                 <LogIn className="h-3.5 w-3.5" />
                 Login
               </button>
             )}
-          </nav>
 
-          <div className="flex items-center gap-2">
-            <Button
-              data-ocid="nav.cart_button"
-              variant="ghost"
-              size="icon"
-              className="relative hover:bg-primary/10 hover:text-primary"
-              onClick={onCartOpen}
-            >
-              <ShoppingCart className="h-5 w-5" />
-              {cartCount > 0 && (
-                <Badge
-                  className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-0 p-0 text-[10px] font-bold"
-                  style={{
-                    backgroundColor: "oklch(55% 0.23 15)",
-                    color: "#ffffff",
-                  }}
-                >
-                  {cartCount}
-                </Badge>
-              )}
-            </Button>
+            {/* Admin icon */}
+            {adminUnlocked ? (
+              <button
+                type="button"
+                data-ocid="header.admin.button"
+                onClick={onAdminClick}
+                className="hidden h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold text-white transition-opacity hover:opacity-90 md:flex rose-gradient"
+              >
+                <Crown className="h-3.5 w-3.5" />
+                Admin
+              </button>
+            ) : (
+              <button
+                type="button"
+                data-ocid="header.admin_unlock.button"
+                onClick={() => setPinDialogOpen(true)}
+                className="hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:flex"
+                aria-label="Admin"
+              >
+                <Crown className="h-4 w-4" />
+              </button>
+            )}
 
-            {/* Mobile Hamburger */}
+            {/* Mobile hamburger */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
-                <Button
-                  data-ocid="nav.mobile_menu_button"
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden hover:bg-primary/10 hover:text-primary"
-                  aria-label="Open menu"
+                <button
+                  type="button"
+                  data-ocid="header.mobile_menu.button"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-secondary md:hidden"
+                  aria-label="Menu"
                 >
                   <Menu className="h-5 w-5" />
-                </Button>
+                </button>
               </SheetTrigger>
               <SheetContent
                 side="right"
-                className="w-72"
-                style={{ backgroundColor: "oklch(10% 0.009 280)" }}
+                className="w-72 border-l border-border bg-white"
+                data-ocid="header.mobile_menu.sheet"
               >
-                <SheetHeader className="mb-6">
-                  <SheetTitle className="flex items-center gap-2 font-display text-lg">
-                    <Store
-                      className="h-5 w-5"
-                      style={{ color: "oklch(55% 0.23 15)" }}
-                    />
+                <SheetHeader>
+                  <SheetTitle
+                    className="font-display text-xl"
+                    style={{ color: "oklch(55% 0.18 15)" }}
+                  >
                     Zenethic
                   </SheetTitle>
                 </SheetHeader>
-
-                <nav className="flex flex-col gap-1">
-                  {[
-                    {
-                      label: "Shop",
-                      page: "shop",
-                      icon: Store,
-                      onClick: () => {
-                        setMobileMenuOpen(false);
-                        onShopClick();
-                      },
-                      ocid: "mobile.shop_link",
-                    },
-                    {
-                      label: "My Orders",
-                      page: "orders",
-                      icon: Package,
-                      onClick: () => {
-                        setMobileMenuOpen(false);
-                        onOrdersClick();
-                      },
-                      ocid: "mobile.orders_link",
-                    },
-                  ].map(({ label, page, icon: Icon, onClick, ocid }) => (
-                    <button
-                      key={page}
-                      type="button"
-                      data-ocid={ocid}
-                      onClick={onClick}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
-                      style={{
-                        backgroundColor:
-                          currentPage === page
-                            ? "oklch(55% 0.23 15 / 0.1)"
-                            : "transparent",
-                        color:
-                          currentPage === page
-                            ? "oklch(65% 0.22 15)"
-                            : "oklch(80% 0.008 280)",
-                      }}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </button>
-                  ))}
-
+                <nav className="mt-8 flex flex-col gap-1">
                   <button
                     type="button"
-                    data-ocid="mobile.admin_link"
-                    onClick={handleMobileAdminClick}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
-                    style={{
-                      backgroundColor:
-                        currentPage === "admin"
-                          ? "oklch(55% 0.23 15 / 0.1)"
-                          : "transparent",
-                      color:
-                        currentPage === "admin"
-                          ? "oklch(65% 0.22 15)"
-                          : "oklch(80% 0.008 280)",
+                    onClick={() => {
+                      onShopClick();
+                      setMobileMenuOpen(false);
                     }}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                   >
-                    <Crown className="h-4 w-4" />
-                    Admin
-                    {!adminUnlocked && (
-                      <span className="ml-auto text-[10px] opacity-50">🔒</span>
-                    )}
-                    {adminUnlocked && (
-                      <span
-                        className="ml-auto rounded-full px-1.5 py-0.5 text-[10px]"
-                        style={{
-                          backgroundColor: "oklch(55% 0.23 15 / 0.15)",
-                          color: "oklch(65% 0.22 15)",
-                        }}
-                      >
-                        ✓
-                      </span>
+                    <Store className="h-4 w-4 text-primary" />
+                    Shop
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onOrdersClick();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                  >
+                    <Package className="h-4 w-4 text-primary" />
+                    My Orders
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onCartOpen();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                  >
+                    <ShoppingCart className="h-4 w-4 text-primary" />
+                    Cart
+                    {cartCount > 0 && (
+                      <Badge className="ml-auto text-white rose-gradient border-0">
+                        {cartCount}
+                      </Badge>
                     )}
                   </button>
-
-                  {adminUnlocked && (
+                  {customerPhone ? (
                     <button
                       type="button"
-                      data-ocid="mobile.admin_logout_button"
+                      onClick={() => {
+                        customerLogout();
+                        setMobileMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                    >
+                      <LogOut className="h-4 w-4 text-primary" />
+                      Logout ({customerPhone})
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        onAdminLockout();
+                        setLoginDialogOpen(true);
                       }}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-destructive"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                     >
-                      <LogOut className="h-4 w-4" />
-                      Exit Admin
+                      <LogIn className="h-4 w-4 text-primary" />
+                      Login
                     </button>
                   )}
-
-                  {/* Customer Login/Logout - Mobile */}
-                  {customerPhone ? (
+                  <div className="my-2 border-t border-border" />
+                  {adminUnlocked ? (
                     <>
-                      <div
-                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium"
-                        style={{ color: "oklch(65% 0.22 15)" }}
-                      >
-                        <User className="h-4 w-4" />
-                        {shortPhone}
-                      </div>
                       <button
                         type="button"
-                        data-ocid="mobile.customer_logout_button"
                         onClick={() => {
+                          onAdminClick();
                           setMobileMenuOpen(false);
-                          handleCustomerLogout();
                         }}
-                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-destructive"
+                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-white rose-gradient transition-opacity hover:opacity-90"
                       >
-                        <LogOut className="h-4 w-4" />
-                        Logout
+                        <Crown className="h-4 w-4" />
+                        Admin Panel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onAdminLockout();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs text-muted-foreground transition-colors hover:bg-secondary"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        Lock Admin
                       </button>
                     </>
                   ) : (
                     <button
                       type="button"
-                      data-ocid="mobile.login_button"
                       onClick={() => {
                         setMobileMenuOpen(false);
-                        setLoginDialogOpen(true);
+                        setPinDialogOpen(true);
                       }}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
-                      style={{ color: "oklch(65% 0.22 15)" }}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
                     >
-                      <LogIn className="h-4 w-4" />
-                      Login
+                      <Crown className="h-4 w-4" />
+                      Admin Login
                     </button>
                   )}
                 </nav>
+
+                <div className="absolute bottom-6 left-0 right-0 px-4">
+                  <p className="text-center text-xs text-muted-foreground">
+                    📞 9405923854
+                  </p>
+                </div>
               </SheetContent>
             </Sheet>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Admin PIN Dialog */}
-      <Dialog
-        open={pinDialogOpen}
-        onOpenChange={(open) => {
-          setPinDialogOpen(open);
-          if (!open) {
-            setPin("");
-            setPinError("");
-          }
-        }}
-      >
-        <DialogContent data-ocid="admin.dialog" className="sm:max-w-sm">
+      <Dialog open={pinDialogOpen} onOpenChange={setPinDialogOpen}>
+        <DialogContent
+          data-ocid="admin.pin.dialog"
+          className="border-border bg-white"
+        >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-display">
-              <Crown
-                className="h-5 w-5"
-                style={{ color: "oklch(55% 0.23 15)" }}
-              />
+            <DialogTitle className="font-display text-foreground">
               Admin Access
             </DialogTitle>
-            <DialogDescription>
-              Enter your admin PIN to access the store control panel.
+            <DialogDescription className="text-muted-foreground">
+              Enter your admin PIN to access the dashboard.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="admin-pin">PIN</Label>
-              <Input
-                id="admin-pin"
-                data-ocid="admin.input"
-                type="password"
-                placeholder="Enter PIN"
-                value={pin}
-                onChange={(e) => {
-                  setPin(e.target.value);
-                  setPinError("");
-                }}
-                onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
-                autoFocus
-              />
-              {pinError && (
-                <p
-                  data-ocid="admin.error_state"
-                  className="text-xs text-destructive"
-                >
-                  {pinError}
-                </p>
-              )}
-            </div>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="admin-pin" className="text-foreground">
+              PIN
+            </Label>
+            <Input
+              id="admin-pin"
+              data-ocid="admin.pin.input"
+              type="password"
+              placeholder="Enter PIN"
+              value={pin}
+              onChange={(e) => {
+                setPin(e.target.value);
+                setPinError("");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handlePinSubmit()}
+              className="border-border bg-white text-foreground placeholder:text-muted-foreground"
+            />
+            {pinError && (
+              <p
+                data-ocid="admin.pin.error_state"
+                className="text-sm text-destructive"
+              >
+                {pinError}
+              </p>
+            )}
           </div>
-
           <DialogFooter>
             <Button
-              data-ocid="admin.cancel_button"
               variant="outline"
+              data-ocid="admin.pin.cancel_button"
               onClick={() => {
                 setPinDialogOpen(false);
                 setPin("");
                 setPinError("");
               }}
+              className="border-border text-foreground"
             >
               Cancel
             </Button>
             <Button
-              data-ocid="admin.submit_button"
-              className="crimson-gradient border-0"
-              style={{ color: "#ffffff" }}
+              data-ocid="admin.pin.submit_button"
               onClick={handlePinSubmit}
-              disabled={!pin}
+              className="text-white rose-gradient border-0 hover:opacity-90"
             >
-              <Crown className="mr-1.5 h-3.5 w-3.5" />
-              Unlock Admin
+              Unlock
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Customer Login Dialog */}
-      <Dialog
-        open={loginDialogOpen}
-        onOpenChange={(open) => {
-          setLoginDialogOpen(open);
-          if (!open) {
-            setLoginPhone("");
-            setLoginError("");
-          }
-        }}
-      >
-        <DialogContent data-ocid="login.dialog" className="sm:max-w-sm">
+      <Dialog open={loginDialogOpen} onOpenChange={setLoginDialogOpen}>
+        <DialogContent
+          data-ocid="login.dialog"
+          className="border-border bg-white"
+        >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-display">
-              <Phone
-                className="h-5 w-5"
-                style={{ color: "oklch(55% 0.23 15)" }}
-              />
+            <DialogTitle className="font-display text-foreground">
               Customer Login
             </DialogTitle>
-            <DialogDescription>
-              Enter your phone number to view your orders.
+            <DialogDescription className="text-muted-foreground">
+              Enter your phone number to track your orders.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="login-phone">Phone Number</Label>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="login-phone" className="text-foreground">
+              Phone Number
+            </Label>
+            <div className="flex gap-2">
+              <div className="flex h-9 items-center justify-center rounded-md border border-border bg-secondary px-3 text-sm font-medium text-foreground">
+                <Phone className="mr-1.5 h-3.5 w-3.5" /> +91
+              </div>
               <Input
                 id="login-phone"
-                data-ocid="login.input"
+                data-ocid="login.phone.input"
                 type="tel"
-                placeholder="e.g. 9876543210"
+                placeholder="10-digit phone number"
                 value={loginPhone}
                 onChange={(e) => {
                   setLoginPhone(e.target.value);
                   setLoginError("");
                 }}
                 onKeyDown={(e) => e.key === "Enter" && handleLoginSubmit()}
-                autoFocus
+                className="border-border bg-white text-foreground placeholder:text-muted-foreground"
               />
-              {loginError && (
-                <p
-                  data-ocid="login.error_state"
-                  className="text-xs text-destructive"
-                >
-                  {loginError}
-                </p>
-              )}
             </div>
+            {loginError && (
+              <p
+                data-ocid="login.error_state"
+                className="text-sm text-destructive"
+              >
+                {loginError}
+              </p>
+            )}
           </div>
-
           <DialogFooter>
             <Button
-              data-ocid="login.cancel_button"
               variant="outline"
+              data-ocid="login.cancel_button"
               onClick={() => {
                 setLoginDialogOpen(false);
                 setLoginPhone("");
                 setLoginError("");
               }}
+              className="border-border text-foreground"
             >
               Cancel
             </Button>
             <Button
               data-ocid="login.submit_button"
-              className="crimson-gradient border-0"
-              style={{ color: "#ffffff" }}
               onClick={handleLoginSubmit}
-              disabled={!loginPhone.trim()}
+              className="text-white rose-gradient border-0 hover:opacity-90"
             >
-              <LogIn className="mr-1.5 h-3.5 w-3.5" />
               Login
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </header>
   );
 }

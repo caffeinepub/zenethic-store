@@ -1,6 +1,5 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye, Minus, Plus, ShoppingBag } from "lucide-react";
+import { ShoppingCart, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -11,26 +10,53 @@ import { ProductDetailModal } from "./ProductDetailModal";
 interface ProductCardProps {
   product: Product;
   index: number;
+  showBestSeller?: boolean;
 }
 
-export function ProductCard({ product, index }: ProductCardProps) {
-  const [qty, setQty] = useState(1);
+function getFakeRating(id: string) {
+  const hash = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rating = 3.5 + (hash % 15) / 10;
+  const count = 100 + (hash % 9000);
+  return { rating: Math.min(5, Number(rating.toFixed(1))), count };
+}
+
+const STAR_PATH =
+  "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z";
+
+export function ProductCard({
+  product,
+  index,
+  showBestSeller,
+}: ProductCardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const addToCart = useAddToCart();
 
   const price = Number(product.price) / 100;
+  const originalPrice = Math.ceil(price * 1.35);
+  const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
   const stockNum = Number(product.stockQuantity);
-  const isLowStock = stockNum > 0 && stockNum <= 5;
   const ocidIndex = index + 1;
+  const { rating, count } = getFakeRating(String(product.id));
 
   const handleAddToCart = async () => {
     try {
       await addToCart.mutateAsync({
         productId: product.id,
-        quantity: BigInt(qty),
+        quantity: BigInt(1),
       });
       toast.success(`${product.name} added to cart`);
-      setQty(1);
+    } catch {
+      toast.error("Failed to add to cart");
+    }
+  };
+
+  const handleBuyNow = async () => {
+    try {
+      await addToCart.mutateAsync({
+        productId: product.id,
+        quantity: BigInt(1),
+      });
+      window.dispatchEvent(new CustomEvent("openCart"));
     } catch {
       toast.error("Failed to add to cart");
     }
@@ -40,185 +66,128 @@ export function ProductCard({ product, index }: ProductCardProps) {
     <>
       <motion.div
         data-ocid={`products.item.${ocidIndex}`}
-        initial={{ opacity: 0, y: 24 }}
+        initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        transition={{ duration: 0.5, delay: (index % 6) * 0.07 }}
-        className="group flex flex-col overflow-hidden rounded-2xl border bg-card transition-all duration-300"
-        style={{ borderColor: "oklch(20% 0.015 280)" }}
-        onMouseEnter={(e) => {
-          (e.currentTarget as HTMLElement).style.borderColor =
-            "oklch(55% 0.23 15 / 0.45)";
-          (e.currentTarget as HTMLElement).style.boxShadow =
-            "0 0 0 1px oklch(55% 0.23 15 / 0.2), 0 16px 40px -8px oklch(55% 0.23 15 / 0.2)";
-        }}
-        onMouseLeave={(e) => {
-          (e.currentTarget as HTMLElement).style.borderColor =
-            "oklch(20% 0.015 280)";
-          (e.currentTarget as HTMLElement).style.boxShadow = "none";
-        }}
+        transition={{ duration: 0.35, delay: (index % 6) * 0.05 }}
+        className="product-card-shadow group flex flex-col overflow-hidden rounded-xl border border-border bg-white transition-shadow duration-200"
       >
-        {/* Image — clickable button to open modal */}
+        {/* Product Image */}
         <button
           type="button"
-          className="relative aspect-[3/4] cursor-pointer overflow-hidden bg-muted"
+          className="relative aspect-square cursor-pointer overflow-hidden bg-gray-50"
           onClick={() => setModalOpen(true)}
           aria-label={`View details for ${product.name}`}
         >
           <img
             src={
               product.imageUrl ||
-              "/assets/generated/product-handbag.dim_600x600.jpg"
+              "/assets/generated/zenethic-hero-products.dim_800x700.png"
             }
             alt={product.name}
-            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            className="h-full w-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
             loading="lazy"
             onError={(e) => {
               (e.target as HTMLImageElement).src =
-                "/assets/generated/product-handbag.dim_600x600.jpg";
+                "/assets/generated/zenethic-hero-products.dim_800x700.png";
             }}
           />
 
-          {/* Crimson overlay on hover */}
-          <div
-            className="absolute inset-0 translate-y-full transition-transform duration-500 group-hover:translate-y-0"
-            style={{
-              background:
-                "linear-gradient(to top, oklch(55% 0.23 15 / 0.3) 0%, transparent 60%)",
-            }}
-          />
-
-          {/* View Details overlay */}
-          <div
-            className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-            style={{ backgroundColor: "oklch(5% 0.005 280 / 0.35)" }}
-          >
+          {/* Best Seller badge */}
+          {showBestSeller && (
             <div
-              className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider"
-              style={{
-                backgroundColor: "oklch(8% 0.008 280 / 0.85)",
-                color: "oklch(97% 0.005 280)",
-                border: "1px solid oklch(55% 0.23 15 / 0.5)",
-                backdropFilter: "blur(8px)",
-              }}
+              className="absolute left-0 top-2 px-2 py-0.5 text-[10px] font-bold text-white"
+              style={{ backgroundColor: "oklch(50% 0.18 15)" }}
             >
-              <Eye
-                className="h-3.5 w-3.5"
-                style={{ color: "oklch(65% 0.22 15)" }}
-              />
-              View Details
+              BEST SELLER
             </div>
-          </div>
+          )}
 
-          {/* Category badge */}
-          <Badge
-            className="absolute left-3 top-3 border-0 text-[10px] font-semibold uppercase tracking-wider"
-            style={{
-              backgroundColor: "oklch(55% 0.23 15)",
-              color: "oklch(98% 0.003 280)",
-            }}
-          >
-            {product.category}
-          </Badge>
-
-          {/* Low stock */}
-          {isLowStock && (
-            <div className="absolute bottom-3 right-3">
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                style={{
-                  backgroundColor: "oklch(10% 0.009 280 / 0.85)",
-                  color: "oklch(70% 0.18 55)",
-                }}
-              >
-                Only {stockNum} left
-              </span>
+          {/* Discount badge */}
+          {!showBestSeller && discount > 0 && (
+            <div className="absolute left-2 top-2 rounded bg-green-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              {discount}% off
             </div>
           )}
 
           {/* Sold out overlay */}
           {stockNum === 0 && (
-            <div
-              className="absolute inset-0 flex items-center justify-center"
-              style={{ backgroundColor: "oklch(5% 0.005 280 / 0.75)" }}
-            >
-              <span
-                className="font-display text-sm font-bold uppercase tracking-[0.2em]"
-                style={{ color: "oklch(95% 0.005 280)" }}
-              >
-                SOLD OUT
+            <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+              <span className="rounded border border-gray-300 bg-white px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-500">
+                Out of Stock
               </span>
             </div>
           )}
         </button>
 
-        {/* Info */}
-        <div className="flex flex-1 flex-col p-4">
-          <h3 className="mb-1 font-display text-sm font-semibold leading-tight line-clamp-1 text-white">
+        {/* Product Info */}
+        <div className="flex flex-1 flex-col px-3 pb-3 pt-3">
+          {/* Product Name — Amazon style: semibold, 2-line clamp, dark */}
+          <h3 className="mb-2 line-clamp-2 min-h-[2.8rem] text-sm font-semibold leading-snug text-gray-900">
             {product.name}
           </h3>
-          <p className="mb-3 flex-1 text-xs text-muted-foreground line-clamp-2">
-            {product.description}
-          </p>
 
-          <div className="mt-auto">
-            <div
-              className="my-3 h-px"
-              style={{
-                background:
-                  "linear-gradient(to right, transparent, oklch(55% 0.23 15 / 0.25), transparent)",
-              }}
-            />
-
-            <div className="mb-3 flex items-center justify-between">
-              <span
-                className="font-display text-xl font-bold"
-                style={{ color: "oklch(65% 0.22 15)" }}
-              >
-                ₹{price.toFixed(2)}
-              </span>
-              {stockNum > 0 && !isLowStock && (
-                <span className="text-xs text-muted-foreground">
-                  {stockNum} in stock
-                </span>
-              )}
-            </div>
-
-            {/* Qty stepper */}
-            <div className="mb-3 flex items-center gap-2">
-              <div
-                className="flex items-center rounded-full"
-                style={{ border: "1px solid oklch(20% 0.015 280)" }}
-              >
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                  onClick={() => setQty(Math.max(1, qty - 1))}
+          {/* Star Rating */}
+          <div className="mb-2 flex items-center gap-1.5">
+            <div className="flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <svg
+                  key={star}
+                  aria-hidden="true"
+                  className="h-3 w-3"
+                  viewBox="0 0 20 20"
+                  fill={star <= Math.round(rating) ? "#f59e0b" : "#e5e7eb"}
                 >
-                  <Minus className="h-3 w-3" />
-                </button>
-                <span className="flex h-7 w-7 items-center justify-center text-xs font-semibold text-white">
-                  {qty}
-                </span>
-                <button
-                  type="button"
-                  className="flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                  onClick={() => setQty(Math.min(stockNum || 99, qty + 1))}
-                >
-                  <Plus className="h-3 w-3" />
-                </button>
-              </div>
+                  <path d={STAR_PATH} />
+                </svg>
+              ))}
             </div>
+            <span className="text-xs font-semibold text-amber-600">
+              {rating}
+            </span>
+            <span className="text-xs text-gray-400">
+              ({count.toLocaleString()})
+            </span>
+          </div>
 
+          {/* Price */}
+          <div className="mb-1 flex flex-wrap items-baseline gap-1.5">
+            <span className="text-base font-bold text-gray-900">
+              ₹{price.toFixed(0)}
+            </span>
+            <span className="text-xs text-gray-400 line-through">
+              ₹{originalPrice}
+            </span>
+            <span className="text-xs font-semibold text-green-600">
+              {discount}% off
+            </span>
+          </div>
+
+          {/* Free delivery */}
+          <p className="mb-3 text-[11px] text-gray-400">FREE Delivery</p>
+
+          {/* Buttons */}
+          <div className="mt-auto space-y-2">
             <Button
               data-ocid={`products.item.${ocidIndex}.add_to_cart_button`}
-              className="crimson-gradient w-full rounded-full border-0 text-xs font-bold uppercase tracking-[0.12em] transition-all duration-300 hover:opacity-90 hover:shadow-crimson-sm"
-              style={{ color: "oklch(98% 0.003 280)" }}
+              className="h-9 w-full rounded-lg border-0 text-xs font-bold text-white shadow-sm transition-all hover:opacity-90"
+              style={{ backgroundColor: "oklch(50% 0.18 15)" }}
               disabled={addToCart.isPending || stockNum === 0}
               onClick={handleAddToCart}
             >
-              <ShoppingBag className="mr-1.5 h-3.5 w-3.5" />
-              ADD
+              <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
+              Add to Cart
+            </Button>
+
+            <Button
+              data-ocid={`products.item.${ocidIndex}.buy_now_button`}
+              variant="outline"
+              className="h-9 w-full rounded-lg text-xs font-bold text-orange-600 border-orange-200 shadow-sm transition-all hover:bg-orange-50"
+              disabled={addToCart.isPending || stockNum === 0}
+              onClick={handleBuyNow}
+            >
+              <Zap className="mr-1.5 h-3.5 w-3.5" />
+              Buy Now
             </Button>
           </div>
         </div>

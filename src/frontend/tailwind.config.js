@@ -16,8 +16,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['"Bricolage Grotesque"', 'system-ui', 'sans-serif'],
-        sans: ['"Satoshi"', 'system-ui', 'sans-serif'],
+        display: ['"Bricolage Grotesque"', '"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', '"Satoshi"', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "oklch(var(--border))",
@@ -78,10 +78,10 @@ export default {
       },
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
-        crimson: "0 0 40px -8px oklch(55% 0.23 15 / 0.4)",
-        "crimson-sm": "0 0 20px -4px oklch(55% 0.23 15 / 0.25)",
-        card: "0 4px 24px -4px rgba(0,0,0,0.6)",
-        "card-hover": "0 20px 40px -8px rgba(0,0,0,0.7)",
+        rose: "0 0 40px -8px oklch(55% 0.18 15 / 0.35)",
+        "rose-sm": "0 0 20px -4px oklch(55% 0.18 15 / 0.2)",
+        card: "0 1px 4px 0 rgba(0,0,0,0.06), 0 4px 16px -4px rgba(0,0,0,0.08)",
+        "card-hover": "0 8px 32px -8px rgba(0,0,0,0.14)",
       },
       keyframes: {
         "accordion-down": {

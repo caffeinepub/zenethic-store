@@ -1,6 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PackageSearch, Search } from "lucide-react";
+import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { useCategories, useProducts } from "../hooks/useQueries";
 import { ProductCard } from "./ProductCard";
@@ -16,9 +17,27 @@ const SKELETON_KEYS = [
   "sk-8",
 ];
 
-export function ProductGrid() {
+interface ProductGridProps {
+  sectionTitle?: string;
+  sectionBadge?: string;
+  filterCategory?: string;
+  limit?: number;
+  showSearch?: boolean;
+  showFilters?: boolean;
+  showBestSeller?: boolean;
+}
+
+export function ProductGrid({
+  sectionTitle = "Trending Now",
+  sectionBadge = "✦ trending ✦",
+  filterCategory,
+  limit,
+  showSearch = true,
+  showFilters = true,
+  showBestSeller = false,
+}: ProductGridProps) {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("all");
+  const [category, setCategory] = useState(filterCategory ?? "all");
   const { data: products = [], isLoading } = useProducts();
   const { data: categories = [] } = useCategories();
 
@@ -40,113 +59,106 @@ export function ProductGrid() {
           p.description.toLowerCase().includes(q),
       );
     }
-    return result;
-  }, [activeProducts, category, search]);
+    let out = result;
+    if (limit) out = out.slice(0, limit);
+    return out;
+  }, [activeProducts, category, search, limit]);
 
   return (
-    <section className="py-16">
+    <section className="py-12">
       <div className="container mx-auto px-4">
-        {/* Gen Z heading */}
-        <div className="mb-6 text-center">
+        {/* Section header */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="mb-8 text-center"
+        >
           <div
-            className="mb-2 inline-flex items-center gap-2 rounded-full px-4 py-1 text-xs font-bold uppercase tracking-widest"
+            className="mb-3 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest"
             style={{
-              background: "oklch(55% 0.23 15 / 0.15)",
-              color: "oklch(65% 0.23 15)",
-              border: "1px solid oklch(55% 0.23 15 / 0.3)",
+              background: "oklch(55% 0.18 15 / 0.1)",
+              color: "oklch(45% 0.16 15)",
+              border: "1px solid oklch(55% 0.18 15 / 0.2)",
             }}
           >
-            ✦ trending now ✦
+            {sectionBadge}
           </div>
-          <h1
-            className="font-display text-5xl font-black leading-none tracking-tight md:text-7xl lg:text-8xl"
-            style={{
-              background:
-                "linear-gradient(135deg, oklch(75% 0.23 15) 0%, oklch(55% 0.23 15) 40%, oklch(80% 0.15 30) 70%, oklch(60% 0.25 10) 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              filter: "drop-shadow(0 0 30px oklch(55% 0.23 15 / 0.4))",
-            }}
-          >
-            Gen Z Products
-          </h1>
-          <p
-            className="mt-3 text-sm font-medium tracking-wider"
-            style={{ color: "oklch(65% 0.015 280)" }}
-          >
-            no cap, these hits different 🔥
-          </p>
-        </div>
-
-        {/* Editorial section header */}
-        <div className="relative mb-12 flex items-end gap-4">
-          <span className="editorial-number leading-none">01</span>
-          <div className="mb-1">
-            <p
-              className="mb-1 text-xs font-semibold uppercase tracking-[0.25em]"
-              style={{ color: "oklch(55% 0.23 15)" }}
-            >
-              Handpicked For You
-            </p>
-            <h2 className="font-display text-4xl font-bold tracking-tight md:text-5xl">
-              Our Collection
-            </h2>
-          </div>
-        </div>
+          <h2 className="section-title">
+            {showBestSeller ? (
+              <>
+                <span style={{ color: "oklch(55% 0.18 15)" }}>
+                  Best Sellers
+                </span>{" "}
+                — Customer Favourites
+              </>
+            ) : (
+              sectionTitle
+            )}
+          </h2>
+        </motion.div>
 
         {/* Search + filters */}
-        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center">
-          <div className="relative max-w-xs flex-1">
-            <Search
-              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
-              style={{ color: "oklch(55% 0.015 280)" }}
-            />
-            <Input
-              data-ocid="products.search_input"
-              placeholder="Search products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="border-border bg-card pl-9 focus-visible:ring-primary/40"
-            />
+        {(showSearch || showFilters) && (
+          <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center">
+            {showSearch && (
+              <div className="relative max-w-xs flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  data-ocid="products.search_input"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search products…"
+                  className="border-border bg-white pl-9 text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+            )}
+            {showFilters && (
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  data-ocid="products.all.tab"
+                  onClick={() => setCategory("all")}
+                  className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors ${
+                    category === "all"
+                      ? "border-primary bg-primary text-white"
+                      : "border-border bg-white text-muted-foreground hover:border-primary/60 hover:text-primary"
+                  }`}
+                >
+                  All
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    data-ocid={`products.${cat}.tab`}
+                    onClick={() => setCategory(cat)}
+                    className={`rounded-full border px-4 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                      category === cat
+                        ? "border-primary bg-primary text-white"
+                        : "border-border bg-white text-muted-foreground hover:border-primary/60 hover:text-primary"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        )}
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              data-ocid="products.category_filter.tab"
-              className={`category-pill${category === "all" ? " active" : ""}`}
-              onClick={() => setCategory("all")}
-            >
-              All
-            </button>
-            {categories.map((cat) => (
-              <button
-                type="button"
-                key={cat}
-                className={`category-pill${category === cat ? " active" : ""}`}
-                onClick={() => setCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
+        {/* Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">
+          <div
+            data-ocid="products.loading_state"
+            className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
+          >
             {SKELETON_KEYS.map((k) => (
-              <div
-                key={k}
-                className="overflow-hidden rounded-2xl border"
-                style={{ borderColor: "oklch(20% 0.015 280)" }}
-              >
-                <Skeleton className="aspect-[3/4] w-full" />
-                <div className="space-y-2 p-4">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-full" />
-                  <Skeleton className="h-8 w-full rounded-full" />
-                </div>
+              <div key={k} className="flex flex-col gap-3">
+                <Skeleton className="aspect-square w-full rounded-xl" />
+                <Skeleton className="h-4 w-3/4 rounded" />
+                <Skeleton className="h-4 w-1/2 rounded" />
               </div>
             ))}
           </div>
@@ -155,39 +167,27 @@ export function ProductGrid() {
             data-ocid="products.empty_state"
             className="flex flex-col items-center justify-center py-24 text-center"
           >
-            <div
-              className="mb-6 rounded-2xl p-8"
-              style={{
-                backgroundColor: "oklch(55% 0.23 15 / 0.06)",
-                border: "1px solid oklch(55% 0.23 15 / 0.2)",
-              }}
-            >
-              <PackageSearch
-                className="h-12 w-12"
-                style={{ color: "oklch(55% 0.23 15 / 0.6)" }}
-              />
-            </div>
-            <h3 className="mb-2 font-display text-2xl font-semibold">
-              {search || category !== "all"
-                ? "No Products Found"
-                : "Coming Soon"}
-            </h3>
-            <p className="max-w-sm text-sm text-muted-foreground">
-              {search || category !== "all"
-                ? "Try adjusting your search or filter."
-                : "Our curated collection is being assembled. Check back soon."}
+            <PackageSearch
+              className="mb-4 h-14 w-14 text-muted-foreground/40"
+              strokeWidth={1}
+            />
+            <p className="text-base font-semibold text-foreground">
+              {search ? "No products match your search" : "No products yet"}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {search
+                ? "Try different keywords"
+                : "Add products from the admin panel"}
             </p>
           </div>
         ) : (
-          <div
-            data-ocid="products.list"
-            className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4"
-          >
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {filtered.map((product, index) => (
               <ProductCard
-                key={String(product.id)}
+                key={product.id}
                 product={product}
                 index={index}
+                showBestSeller={showBestSeller}
               />
             ))}
           </div>

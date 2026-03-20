@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,10 +12,10 @@ import {
   Minus,
   Package,
   Plus,
-  ShoppingBag,
-  Star,
+  ShoppingCart,
   Truck,
   X,
+  Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -31,6 +30,16 @@ interface ProductDetailModalProps {
   onClose: () => void;
 }
 
+function getFakeRating(id: string) {
+  const hash = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+  const rating = 3.5 + (hash % 15) / 10;
+  const count = 100 + (hash % 9000);
+  return { rating: Math.min(5, Number(rating.toFixed(1))), count };
+}
+
+const STAR_PATH =
+  "M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z";
+
 export function ProductDetailModal({
   product,
   open,
@@ -44,7 +53,6 @@ export function ProductDetailModal({
     ? [product.imageUrl, ...getExtraImages(product.id)].filter(Boolean)
     : [];
 
-  // Reset index when product changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset on product id change
   useEffect(() => {
     setCurrentIdx(0);
@@ -61,14 +69,18 @@ export function ProductDetailModal({
       );
     }
   };
+
   const addToCart = useAddToCart();
 
   if (!product) return null;
 
   const price = Number(product.price) / 100;
+  const originalPrice = Math.ceil(price * 1.3);
+  const discount = Math.round(((originalPrice - price) / originalPrice) * 100);
   const stockNum = Number(product.stockQuantity);
   const isLowStock = stockNum > 0 && stockNum <= 5;
   const inStock = stockNum > 0;
+  const { rating, count } = getFakeRating(String(product.id));
 
   const handleAddToCart = async () => {
     try {
@@ -83,25 +95,33 @@ export function ProductDetailModal({
     }
   };
 
+  const handleBuyNow = async () => {
+    try {
+      await addToCart.mutateAsync({
+        productId: product.id,
+        quantity: BigInt(qty),
+      });
+      onClose();
+      window.dispatchEvent(new CustomEvent("openCart"));
+    } catch {
+      toast.error("Failed to add to cart");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         data-ocid="product.modal"
-        className="max-h-[90vh] max-w-3xl overflow-y-auto border-0 p-0"
-        style={{
-          backgroundColor: "oklch(8% 0.008 280)",
-          border: "1px solid oklch(20% 0.015 280)",
-        }}
+        className="max-h-[92vh] max-w-4xl overflow-y-auto border-0 bg-white p-0"
       >
         {/* Close button */}
         <button
           type="button"
           data-ocid="product.modal.close_button"
           onClick={onClose}
-          className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/10"
-          style={{ color: "oklch(70% 0.01 280)" }}
+          className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 transition-colors hover:bg-gray-200"
         >
-          <X className="h-4 w-4" />
+          <X className="h-4 w-4 text-gray-600" />
         </button>
 
         <DialogHeader className="sr-only">
@@ -109,16 +129,49 @@ export function ProductDetailModal({
         </DialogHeader>
 
         <div className="flex flex-col md:flex-row">
-          {/* Image */}
+          {/* Left: image gallery */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4 }}
-            className="relative w-full flex-shrink-0 md:w-[45%]"
+            transition={{ duration: 0.35 }}
+            className="flex flex-col md:w-[42%] md:flex-shrink-0"
           >
+            {/* Thumbnail strip */}
+            {allImages.length > 1 && (
+              <div className="flex flex-row gap-2 overflow-x-auto p-3 md:flex-col md:overflow-y-auto">
+                {allImages.map((img, idx) => (
+                  <button
+                    // biome-ignore lint/suspicious/noArrayIndexKey: thumbnails use index
+                    key={idx}
+                    type="button"
+                    data-ocid={`product.modal.thumbnail.${idx + 1}`}
+                    onClick={() => setCurrentIdx(idx)}
+                    className={`h-14 w-14 flex-shrink-0 overflow-hidden rounded border-2 transition-all ${
+                      idx === currentIdx
+                        ? "border-blue-600"
+                        : "border-gray-200 hover:border-gray-400"
+                    }`}
+                  >
+                    <img
+                      src={
+                        img ||
+                        "/assets/generated/product-handbag.dim_600x600.jpg"
+                      }
+                      alt={`View ${idx + 1}`}
+                      className="h-full w-full bg-gray-50 object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "/assets/generated/product-handbag.dim_600x600.jpg";
+                      }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Main image */}
             <div
-              className="relative aspect-[4/5] overflow-hidden md:rounded-l-lg"
-              style={{ backgroundColor: "oklch(12% 0.008 280)" }}
+              className="relative flex aspect-square items-center justify-center overflow-hidden bg-gray-50"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
             >
@@ -128,26 +181,24 @@ export function ProductDetailModal({
                   "/assets/generated/product-handbag.dim_600x600.jpg"
                 }
                 alt={product.name}
-                className="h-full w-full object-cover transition-opacity duration-200"
+                className="h-full w-full object-contain p-4 transition-opacity duration-200"
                 onError={(e) => {
                   (e.target as HTMLImageElement).src =
                     "/assets/generated/product-handbag.dim_600x600.jpg";
                 }}
               />
 
-              {/* Left arrow */}
+              {/* Nav arrows */}
               {currentIdx > 0 && (
                 <button
                   type="button"
                   data-ocid="product.modal.prev_image"
                   onClick={() => setCurrentIdx((i) => Math.max(i - 1, 0))}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-lg"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 text-gray-700" />
                 </button>
               )}
-
-              {/* Right arrow */}
               {currentIdx < allImages.length - 1 && (
                 <button
                   type="button"
@@ -155,264 +206,202 @@ export function ProductDetailModal({
                   onClick={() =>
                     setCurrentIdx((i) => Math.min(i + 1, allImages.length - 1))
                   }
-                  className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white transition-colors hover:bg-black/70"
+                  className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md transition-shadow hover:shadow-lg"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 text-gray-700" />
                 </button>
               )}
 
-              {/* Dot indicators */}
+              {/* Dots */}
               {allImages.length > 1 && (
                 <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
                   {allImages.map((_, idx) => (
                     <button
-                      // biome-ignore lint/suspicious/noArrayIndexKey: image dots use index intentionally
+                      // biome-ignore lint/suspicious/noArrayIndexKey: dots use index
                       key={idx}
                       type="button"
                       data-ocid={`product.modal.dot.${idx + 1}`}
                       onClick={() => setCurrentIdx(idx)}
-                      className="h-1.5 rounded-full transition-all duration-200"
-                      style={{
-                        width: idx === currentIdx ? "20px" : "6px",
-                        backgroundColor:
-                          idx === currentIdx
-                            ? "oklch(65% 0.22 15)"
-                            : "oklch(80% 0.005 280 / 0.6)",
-                      }}
+                      className={`h-1.5 rounded-full transition-all duration-200 ${
+                        idx === currentIdx
+                          ? "w-5 bg-blue-600"
+                          : "w-1.5 bg-gray-400"
+                      }`}
                     />
                   ))}
                 </div>
               )}
 
-              {/* Category badge */}
-              <Badge
-                className="absolute left-3 top-3 border-0 text-[10px] font-bold uppercase tracking-wider"
-                style={{
-                  backgroundColor: "oklch(55% 0.23 15)",
-                  color: "oklch(98% 0.003 280)",
-                }}
-              >
-                {product.category}
-              </Badge>
-
-              {/* Stock overlay */}
+              {/* Out of stock overlay */}
               {!inStock && (
-                <div
-                  className="absolute inset-0 flex items-center justify-center"
-                  style={{ backgroundColor: "oklch(5% 0.005 280 / 0.8)" }}
-                >
-                  <span
-                    className="font-display text-lg font-black uppercase tracking-[0.2em]"
-                    style={{ color: "oklch(95% 0.005 280)" }}
-                  >
-                    SOLD OUT
+                <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+                  <span className="rounded border border-gray-400 bg-white px-3 py-1 text-sm font-bold uppercase tracking-wider text-gray-600">
+                    Out of Stock
                   </span>
                 </div>
               )}
             </div>
           </motion.div>
 
-          {/* Details */}
+          {/* Right: product details */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="flex flex-1 flex-col p-6"
+            transition={{ duration: 0.35, delay: 0.08 }}
+            className="flex flex-1 flex-col bg-white p-5 md:p-6"
           >
-            {/* Rating row (decorative) */}
-            <div className="mb-3 flex items-center gap-1.5">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star
-                  key={s}
-                  className="h-3.5 w-3.5 fill-current"
-                  style={{
-                    color:
-                      s <= 4 ? "oklch(70% 0.18 55)" : "oklch(40% 0.01 280)",
-                  }}
-                />
-              ))}
-              <span
-                className="ml-1 text-xs"
-                style={{ color: "oklch(55% 0.015 280)" }}
-              >
-                4.0 · Zenethic Verified
-              </span>
-            </div>
+            {/* Category */}
+            <span className="mb-2 text-xs font-medium uppercase tracking-wider text-blue-600">
+              {product.category}
+            </span>
 
-            {/* Product name */}
-            <h2
-              className="mb-3 font-display text-xl font-black leading-tight tracking-tight md:text-2xl"
-              style={{ color: "oklch(97% 0.005 280)" }}
-            >
+            {/* Name */}
+            <h2 className="mb-3 text-xl font-semibold leading-snug text-gray-900 md:text-2xl">
               {product.name}
             </h2>
 
-            {/* Price block */}
-            <div className="mb-4 flex items-baseline gap-3">
-              <span
-                className="font-display text-3xl font-black"
-                style={{ color: "oklch(65% 0.22 15)" }}
-              >
-                ₹{price.toFixed(2)}
+            {/* Rating */}
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex items-center gap-1 rounded bg-green-600 px-2 py-0.5">
+                <span className="text-sm font-bold text-white">{rating}</span>
+                <svg
+                  aria-hidden="true"
+                  className="h-3 w-3 text-white"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path d={STAR_PATH} />
+                </svg>
+              </div>
+              <span className="text-sm text-gray-500">
+                {count.toLocaleString()} Ratings
               </span>
-              <span
-                className="text-sm line-through"
-                style={{ color: "oklch(45% 0.01 280)" }}
-              >
-                ₹{(price * 1.3).toFixed(2)}
-              </span>
-              <span
-                className="rounded px-2 py-0.5 text-xs font-bold"
-                style={{
-                  backgroundColor: "oklch(55% 0.23 15 / 0.15)",
-                  color: "oklch(65% 0.22 15)",
-                }}
-              >
-                23% OFF
+              <span className="text-gray-300">|</span>
+              <span className="text-sm font-medium text-blue-600">
+                Zenethic Verified
               </span>
             </div>
 
-            {/* Divider */}
-            <div
-              className="mb-4 h-px"
-              style={{
-                background:
-                  "linear-gradient(to right, oklch(55% 0.23 15 / 0.3), transparent)",
-              }}
-            />
+            {/* Price */}
+            <div className="mb-1 flex items-baseline gap-3">
+              <span className="text-3xl font-bold text-gray-900">
+                ₹{price.toFixed(0)}
+              </span>
+              <span className="text-base text-gray-400 line-through">
+                ₹{originalPrice}
+              </span>
+              <span className="text-base font-semibold text-green-600">
+                {discount}% off
+              </span>
+            </div>
+            <p className="mb-4 text-xs text-gray-500">Inclusive of all taxes</p>
+
+            <hr className="mb-4 border-gray-100" />
 
             {/* Stock status */}
             <div className="mb-4">
               {inStock ? (
                 <div className="flex items-center gap-2">
-                  <CheckCircle2
-                    className="h-4 w-4"
-                    style={{ color: "oklch(62% 0.2 145)" }}
-                  />
-                  <span
-                    className="text-sm font-semibold"
-                    style={{ color: "oklch(62% 0.2 145)" }}
-                  >
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-semibold text-green-600">
                     {isLowStock
-                      ? `Only ${stockNum} left in stock — order soon`
+                      ? `Only ${stockNum} left — order soon`
                       : "In Stock"}
                   </span>
                 </div>
               ) : (
-                <span
-                  className="text-sm font-semibold"
-                  style={{ color: "oklch(60% 0.22 15)" }}
-                >
+                <span className="text-sm font-semibold text-red-500">
                   Currently unavailable
                 </span>
               )}
             </div>
 
-            {/* Description */}
-            <div className="mb-6">
-              <h3
-                className="mb-2 text-xs font-bold uppercase tracking-widest"
-                style={{ color: "oklch(55% 0.23 15)" }}
-              >
-                About this item
-              </h3>
-              <p
-                className="text-sm leading-relaxed"
-                style={{ color: "oklch(72% 0.01 280)" }}
-              >
-                {product.description ||
-                  "Premium quality product from Zenethic. Curated for Gen Z tastes — trendy, durable, and delivered fast."}
-              </p>
-            </div>
-
             {/* Delivery info */}
-            <div className="mb-6 space-y-2">
+            <div className="mb-4 space-y-2 rounded-sm bg-gray-50 p-3">
               <div className="flex items-center gap-2">
-                <Truck
-                  className="h-4 w-4"
-                  style={{ color: "oklch(55% 0.23 15)" }}
-                />
-                <span
-                  className="text-xs"
-                  style={{ color: "oklch(65% 0.01 280)" }}
-                >
-                  Free delivery on orders over ₹499
+                <Truck className="h-4 w-4 text-gray-500" />
+                <span className="text-xs text-gray-700">
+                  <strong>FREE Delivery</strong> on orders over ₹499
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Package
-                  className="h-4 w-4"
-                  style={{ color: "oklch(55% 0.23 15)" }}
-                />
-                <span
-                  className="text-xs"
-                  style={{ color: "oklch(65% 0.01 280)" }}
-                >
-                  Easy 7-day returns
+                <Package className="h-4 w-4 text-gray-500" />
+                <span className="text-xs text-gray-700">
+                  Easy 7-day returns &amp; exchanges
                 </span>
               </div>
             </div>
 
             {/* Qty stepper */}
             {inStock && (
-              <div className="mb-4">
-                <p
-                  className="mb-2 text-xs font-bold uppercase tracking-widest"
-                  style={{ color: "oklch(55% 0.23 15)" }}
-                >
+              <div className="mb-5">
+                <p className="mb-2 text-sm font-semibold text-gray-700">
                   Quantity
                 </p>
                 <div className="flex items-center gap-3">
-                  <div
-                    className="flex items-center overflow-hidden rounded-full"
-                    style={{ border: "1px solid oklch(28% 0.015 280)" }}
-                  >
+                  <div className="flex items-center rounded border border-gray-300">
                     <button
                       type="button"
                       data-ocid="product.modal.qty_minus"
-                      className="flex h-9 w-9 items-center justify-center transition-colors hover:bg-white/10"
-                      style={{ color: "oklch(70% 0.01 280)" }}
+                      className="flex h-9 w-9 items-center justify-center text-gray-600 transition-colors hover:bg-gray-100"
                       onClick={() => setQty(Math.max(1, qty - 1))}
                     >
-                      <Minus className="h-3.5 w-3.5" />
+                      <Minus className="h-4 w-4" />
                     </button>
-                    <span
-                      className="flex h-9 w-10 items-center justify-center text-sm font-bold"
-                      style={{ color: "oklch(97% 0.005 280)" }}
-                    >
+                    <span className="flex h-9 w-12 items-center justify-center border-x border-gray-300 text-sm font-bold text-gray-900">
                       {qty}
                     </span>
                     <button
                       type="button"
                       data-ocid="product.modal.qty_plus"
-                      className="flex h-9 w-9 items-center justify-center transition-colors hover:bg-white/10"
-                      style={{ color: "oklch(70% 0.01 280)" }}
+                      className="flex h-9 w-9 items-center justify-center text-gray-600 transition-colors hover:bg-gray-100"
                       onClick={() => setQty(Math.min(stockNum || 99, qty + 1))}
                     >
-                      <Plus className="h-3.5 w-3.5" />
+                      <Plus className="h-4 w-4" />
                     </button>
                   </div>
-                  <span
-                    className="text-xs"
-                    style={{ color: "oklch(50% 0.012 280)" }}
-                  >
+                  <span className="text-xs text-gray-400">
                     {stockNum} available
                   </span>
                 </div>
               </div>
             )}
 
-            {/* CTA */}
-            <Button
-              data-ocid="product.modal.add_to_cart_button"
-              className="crimson-gradient w-full rounded-full border-0 py-5 text-sm font-black uppercase tracking-[0.15em] transition-all duration-300 hover:opacity-90 hover:shadow-crimson-sm"
-              style={{ color: "oklch(98% 0.003 280)" }}
-              disabled={addToCart.isPending || !inStock}
-              onClick={handleAddToCart}
-            >
-              <ShoppingBag className="mr-2 h-4 w-4" />
-              {inStock ? "ADD TO CART" : "SOLD OUT"}
-            </Button>
+            {/* CTA buttons */}
+            <div className="space-y-3">
+              <Button
+                data-ocid="product.modal.add_to_cart_button"
+                className="h-11 w-full rounded-sm border border-amber-500 bg-amber-400 text-sm font-semibold text-gray-900 shadow-sm transition-colors hover:bg-amber-500"
+                disabled={addToCart.isPending || !inStock}
+                onClick={handleAddToCart}
+              >
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                {inStock ? "Add to Cart" : "Out of Stock"}
+              </Button>
+
+              {inStock && (
+                <Button
+                  data-ocid="product.modal.buy_now_button"
+                  className="h-11 w-full rounded-sm bg-orange-500 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-orange-600"
+                  disabled={addToCart.isPending}
+                  onClick={handleBuyNow}
+                >
+                  <Zap className="mr-2 h-4 w-4" />
+                  Buy Now
+                </Button>
+              )}
+            </div>
+
+            {/* Description */}
+            <div className="mt-6">
+              <h3 className="mb-2 border-b border-gray-100 pb-2 text-sm font-bold text-gray-900">
+                Product Description
+              </h3>
+              <p className="text-sm leading-relaxed text-gray-600">
+                {product.description ||
+                  "Premium quality product from Zenethic. Curated for Gen Z tastes — trendy, durable, and delivered fast."}
+              </p>
+            </div>
           </motion.div>
         </div>
       </DialogContent>

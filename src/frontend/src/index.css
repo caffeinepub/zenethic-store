@@ -1,4 +1,12 @@
 @font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/assets/fonts/PlusJakartaSans.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "Bricolage Grotesque";
   src: url("/assets/fonts/BricolageGrotesque.woff2") format("woff2");
   font-weight: 200 800;
@@ -20,39 +28,43 @@
 
 @layer base {
   :root {
-    --background: 8 0.008 280;
-    --foreground: 95 0.005 280;
-    --card: 12 0.01 280;
-    --card-foreground: 95 0.005 280;
-    --popover: 12 0.01 280;
-    --popover-foreground: 95 0.005 280;
-    --primary: 55 0.23 15;
-    --primary-foreground: 98 0.003 280;
-    --secondary: 16 0.012 280;
-    --secondary-foreground: 85 0.01 280;
-    --muted: 18 0.01 280;
-    --muted-foreground: 55 0.015 280;
-    --accent: 55 0.23 15;
-    --accent-foreground: 98 0.003 280;
+    /* Page background: light gray #F3F4F6 */
+    --background: 96 0.003 280;
+    --foreground: 18 0.01 280;
+    /* Cards: pure white */
+    --card: 100 0.001 280;
+    --card-foreground: 18 0.01 280;
+    --popover: 100 0.001 280;
+    --popover-foreground: 18 0.01 280;
+    /* Primary accent: rose #D85B73 */
+    --primary: 55 0.18 15;
+    --primary-foreground: 99 0.002 280;
+    --secondary: 95 0.006 280;
+    --secondary-foreground: 25 0.01 280;
+    --muted: 95 0.006 280;
+    --muted-foreground: 55 0.01 280;
+    --accent: 92 0.012 15;
+    --accent-foreground: 25 0.01 280;
     --destructive: 50 0.22 27;
-    --destructive-foreground: 94 0.01 280;
-    --border: 20 0.015 280;
-    --input: 16 0.012 280;
-    --ring: 55 0.23 15;
+    --destructive-foreground: 99 0.002 280;
+    /* Borders: #E5E7EB */
+    --border: 91 0.006 280;
+    --input: 96 0.006 280;
+    --ring: 55 0.18 15;
     --radius: 0.75rem;
-    --chart-1: 55 0.23 15;
-    --chart-2: 55 0.18 200;
+    --chart-1: 55 0.18 15;
+    --chart-2: 60 0.15 200;
     --chart-3: 65 0.14 150;
     --chart-4: 65 0.14 40;
     --chart-5: 60 0.14 320;
-    --sidebar: 12 0.01 280;
-    --sidebar-foreground: 95 0.005 280;
-    --sidebar-primary: 55 0.23 15;
-    --sidebar-primary-foreground: 98 0.003 280;
-    --sidebar-accent: 16 0.012 280;
-    --sidebar-accent-foreground: 85 0.01 280;
-    --sidebar-border: 20 0.015 280;
-    --sidebar-ring: 55 0.23 15;
+    --sidebar: 98 0.003 280;
+    --sidebar-foreground: 18 0.01 280;
+    --sidebar-primary: 55 0.18 15;
+    --sidebar-primary-foreground: 99 0.002 280;
+    --sidebar-accent: 95 0.006 280;
+    --sidebar-accent-foreground: 25 0.01 280;
+    --sidebar-border: 91 0.006 280;
+    --sidebar-ring: 55 0.18 15;
   }
 
   * {
@@ -60,17 +72,12 @@
   }
 
   html {
-    color-scheme: dark;
+    color-scheme: light;
     scroll-behavior: smooth;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    background-image: radial-gradient(
-      ellipse 70% 40% at 50% 0%,
-      oklch(55% 0.23 15 / 0.06) 0%,
-      transparent 65%
-    );
   }
 
   h1,
@@ -85,55 +92,84 @@
   input,
   textarea,
   select {
-    color: oklch(95% 0.005 280) !important;
-    background-color: oklch(16% 0.012 280);
+    color: oklch(18% 0.01 280) !important;
+    background-color: oklch(100% 0.001 280);
   }
 
   input::placeholder,
   textarea::placeholder {
-    color: oklch(55% 0.015 280) !important;
+    color: oklch(55% 0.01 280) !important;
     opacity: 1;
   }
 }
 
 @layer components {
-  .crimson-gradient {
+  .rose-gradient {
     background: linear-gradient(
       135deg,
-      oklch(55% 0.23 15),
-      oklch(48% 0.2 10),
-      oklch(62% 0.2 20)
+      oklch(55% 0.18 15),
+      oklch(50% 0.16 10),
+      oklch(60% 0.17 20)
     );
   }
 
-  .crimson-text {
-    background: linear-gradient(135deg, oklch(65% 0.24 15), oklch(72% 0.2 25));
+  .gold-gradient {
+    background: linear-gradient(
+      135deg,
+      oklch(55% 0.18 15),
+      oklch(50% 0.16 10),
+      oklch(60% 0.17 20)
+    );
+  }
+
+  .gold-text {
+    background: linear-gradient(135deg, oklch(50% 0.18 15), oklch(45% 0.16 10));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .card-glow {
-    box-shadow: 0 0 0 1px oklch(55% 0.23 15 / 0.25), 0 8px 32px -8px
-      oklch(55% 0.23 15 / 0.2);
+  /* Hero: pink #F7B6C6 → lavender #C9D4F2 */
+  .hero-gradient {
+    background: linear-gradient(
+      135deg,
+      oklch(83% 0.055 15) 0%,
+      oklch(88% 0.03 340) 50%,
+      oklch(88% 0.032 280) 100%
+    );
   }
 
-  .editorial-number {
-    font-family: "Bricolage Grotesque", sans-serif;
-    font-size: clamp(4rem, 10vw, 8rem);
-    font-weight: 800;
-    line-height: 1;
-    color: oklch(95% 0.005 280 / 0.04);
-    user-select: none;
-    pointer-events: none;
+  /* Announcement bar: pale pink #FDECEF */
+  .announcement-bar {
+    background: oklch(96% 0.018 15);
+    color: oklch(22% 0.01 280);
   }
 
-  .category-pill {
-    @apply rounded-full border border-border bg-card px-4 py-1.5 text-xs font-medium uppercase tracking-wider transition-all duration-200 hover:border-primary/60 hover:text-primary cursor-pointer text-muted-foreground;
+  .category-card {
+    @apply relative overflow-hidden rounded-2xl cursor-pointer transition-transform duration-300 hover:-translate-y-1;
   }
 
-  .category-pill.active {
-    @apply border-primary text-primary-foreground crimson-gradient;
+  .product-card-shadow {
+    box-shadow: 0 2px 8px 0 rgba(17, 24, 39, 0.06), 0 1px 2px 0
+      rgba(17, 24, 39, 0.04);
+  }
+
+  .product-card-shadow:hover {
+    box-shadow: 0 8px 24px -4px rgba(17, 24, 39, 0.12), 0 4px 8px -2px
+      rgba(17, 24, 39, 0.06);
+  }
+
+  .trust-strip {
+    @apply border border-border bg-white rounded-xl;
+    box-shadow: 0 2px 8px 0 rgba(17, 24, 39, 0.06);
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-semibold text-foreground md:text-3xl;
+  }
+
+  .section-subtitle {
+    @apply text-muted-foreground text-sm;
   }
 
   .marquee-track {
