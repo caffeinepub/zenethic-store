@@ -12,7 +12,7 @@ function FooterLink({
       <button
         type="button"
         onClick={onClick}
-        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="text-sm text-gray-800 transition-colors hover:text-gray-900 font-medium"
       >
         {label}
       </button>
@@ -65,7 +65,7 @@ export function Footer({ onPolicyClick }: FooterProps) {
             >
               Zenethic
             </div>
-            <p className="text-sm leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-gray-700">
               Premium perfumes, skincare & aesthetic accessories. Your vibe,
               your store.
             </p>
@@ -133,7 +133,7 @@ export function Footer({ onPolicyClick }: FooterProps) {
             <h4 className="text-xs font-bold uppercase tracking-[0.15em] text-foreground">
               Contact Us
             </h4>
-            <ul className="flex flex-col gap-2.5 text-sm text-muted-foreground">
+            <ul className="flex flex-col gap-2.5 text-sm text-gray-800">
               <li>
                 <a
                   href="https://wa.me/919405923854"
@@ -149,7 +149,7 @@ export function Footer({ onPolicyClick }: FooterProps) {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row">
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border pt-8 text-xs text-gray-700 sm:flex-row">
           <p>© {year} Zenethic. All rights reserved.</p>
           <p>
             Built with <Heart className="inline h-3 w-3 text-primary" /> using{" "}

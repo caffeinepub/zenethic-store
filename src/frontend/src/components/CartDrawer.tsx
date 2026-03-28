@@ -613,7 +613,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                         <div className="flex items-start justify-between gap-2">
                           <h4
                             className="text-sm font-medium leading-tight line-clamp-2"
-                            style={{ color: "#ffffff" }}
+                            style={{ color: "#1a1a1a" }}
                           >
                             {item.product?.name ?? "Unknown Product"}
                           </h4>
@@ -637,7 +637,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                           <div className="flex items-center rounded-md border border-red-500/50">
                             <button
                               type="button"
-                              className="flex h-6 w-6 items-center justify-center text-white hover:text-red-400"
+                              className="flex h-6 w-6 items-center justify-center text-gray-800 hover:text-red-500"
                               onClick={() => {
                                 const newQty = Number(item.quantity) - 1;
                                 if (newQty < 1) {
@@ -654,16 +654,13 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                             </button>
                             <span
                               className="flex h-6 w-8 items-center justify-center text-xs font-bold"
-                              style={{
-                                color: "#ffffff",
-                                textShadow: "0 0 4px rgba(0,0,0,0.8)",
-                              }}
+                              style={{ color: "#b91c1c" }}
                             >
                               {String(item.quantity)}
                             </span>
                             <button
                               type="button"
-                              className="flex h-6 w-6 items-center justify-center text-white hover:text-red-400"
+                              className="flex h-6 w-6 items-center justify-center text-gray-800 hover:text-red-500"
                               onClick={() =>
                                 updateQty.mutate({
                                   productId: item.productId,

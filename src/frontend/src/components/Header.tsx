@@ -304,7 +304,7 @@ export function Header({
                       onShopClick();
                       setMobileMenuOpen(false);
                     }}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
                   >
                     <Store className="h-4 w-4 text-primary" />
                     Shop
@@ -315,7 +315,7 @@ export function Header({
                       onOrdersClick();
                       setMobileMenuOpen(false);
                     }}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
                   >
                     <Package className="h-4 w-4 text-primary" />
                     My Orders
@@ -326,7 +326,7 @@ export function Header({
                       onCartOpen();
                       setMobileMenuOpen(false);
                     }}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
                   >
                     <ShoppingCart className="h-4 w-4 text-primary" />
                     Cart
@@ -343,7 +343,7 @@ export function Header({
                         customerLogout();
                         setMobileMenuOpen(false);
                       }}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
                     >
                       <LogOut className="h-4 w-4 text-primary" />
                       Logout ({customerPhone})
@@ -355,7 +355,7 @@ export function Header({
                         setMobileMenuOpen(false);
                         setLoginDialogOpen(true);
                       }}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
                     >
                       <LogIn className="h-4 w-4 text-primary" />
                       Login
@@ -394,7 +394,7 @@ export function Header({
                         setMobileMenuOpen(false);
                         setPinDialogOpen(true);
                       }}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary"
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100"
                     >
                       <Crown className="h-4 w-4" />
                       Admin Login

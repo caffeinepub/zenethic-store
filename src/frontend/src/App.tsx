@@ -152,7 +152,7 @@ export default function App() {
                         style={{ color: "oklch(50% 0.16 15)" }}
                         strokeWidth={1.8}
                       />
-                      <span className="text-xs font-medium text-gray-500">
+                      <span className="text-xs font-medium text-gray-800">
                         {item.label}
                       </span>
                     </div>

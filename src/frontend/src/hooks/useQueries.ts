@@ -40,7 +40,33 @@ export function loadProductsFromStorage(): Product[] {
     const raw = localStorage.getItem(PRODUCTS_CACHE_KEY);
     if (!raw) return [];
     const data = JSON.parse(raw);
-    return data.map(deserializeProduct);
+    const products = data.map(deserializeProduct);
+    // Deduplicate: by id (bigint > 0), then by name+price combo
+    const seenIds = new Set<string>();
+    const seenNamePrice = new Set<string>();
+    const deduped = products.filter((p: Product) => {
+      const idKey = p.id.toString();
+      const npKey = `${p.name.trim().toLowerCase()}::${p.price.toString()}`;
+      if (p.id > 0n) {
+        if (seenIds.has(idKey)) return false;
+        seenIds.add(idKey);
+      }
+      if (seenNamePrice.has(npKey)) return false;
+      seenNamePrice.add(npKey);
+      return true;
+    });
+    // Persist cleaned list back if duplicates were removed
+    if (deduped.length < products.length) {
+      try {
+        localStorage.setItem(
+          PRODUCTS_CACHE_KEY,
+          JSON.stringify(deduped.map(serializeProduct)),
+        );
+      } catch {
+        // ignore storage errors
+      }
+    }
+    return deduped;
   } catch {
     return [];
   }

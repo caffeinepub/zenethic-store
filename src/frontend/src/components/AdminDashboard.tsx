@@ -519,35 +519,35 @@ export function AdminDashboard() {
             <TabsTrigger
               data-ocid="admin.products_tab"
               value="products"
-              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+              className="text-gray-900 font-semibold data-[state=active]:bg-rose-600 data-[state=active]:text-white"
             >
               Products
             </TabsTrigger>
             <TabsTrigger
               data-ocid="admin.orders_tab"
               value="orders"
-              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+              className="text-gray-900 font-semibold data-[state=active]:bg-rose-600 data-[state=active]:text-white"
             >
               Orders
             </TabsTrigger>
             <TabsTrigger
               data-ocid="admin.customers_tab"
               value="customers"
-              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+              className="text-gray-900 font-semibold data-[state=active]:bg-rose-600 data-[state=active]:text-white"
             >
               Customers
             </TabsTrigger>
             <TabsTrigger
               data-ocid="admin.stats_tab"
               value="stats"
-              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+              className="text-gray-900 font-semibold data-[state=active]:bg-rose-600 data-[state=active]:text-white"
             >
               Stats
             </TabsTrigger>
             <TabsTrigger
               data-ocid="admin.settings_tab"
               value="settings"
-              className="text-gray-700 data-[state=active]:bg-gray-900 data-[state=active]:text-white"
+              className="text-gray-900 font-semibold data-[state=active]:bg-rose-600 data-[state=active]:text-white"
             >
               Settings
             </TabsTrigger>
